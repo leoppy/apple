@@ -1,0 +1,18 @@
+name: Trigger Parent Repo Update
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  notify-parent:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger banana repo to update submodule
+        run: |
+          curl -X POST \
+            -H "Accept: application/vnd.github.v3+json" \
+            -H "Authorization: token ${{ secrets.PARENT_REPO_TOKEN }}" \
+            https://api.github.com/repos/leoppy/banana/dispatches \
+            -d '{"event_type":"submodule_update","client_payload":{"submodule":"apple","commit":"${{ github.sha }}"}}'
