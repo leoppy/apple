@@ -27,3 +27,4 @@ Copy-Item .env.example .env
 ```powershell
 rg -n -i "token|password|secret|authorization|private-token|192\.168\.|D:\\|C:\\Users" .
 ```
+
