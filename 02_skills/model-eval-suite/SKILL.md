@@ -65,11 +65,11 @@ mkdir -p 02_skills/model-eval-suite/{01_req,02_artifacts,03_results}
 
 ### 0.5 检查评测脚本
 
-提醒用户检查工作区根目录是否有评测脚本：
-- `gen_v2.py` - 生成佐证截图
-- `build_final_report.py` - 打包 HTML 报告
+提醒用户检查 `model-eval-suite/scripts/` 目录下是否有评测脚本：
+- `scripts/gen_v2.py` - 生成佐证截图
+- `scripts/build_final_report.py` - 打包 HTML 报告
 
-如果缺失，提示用户需要准备这些脚本。
+如果缺失，从其他评测工作区复制过来，或重新生成这两个脚本。
 
 ---
 
@@ -86,7 +86,7 @@ mkdir -p 02_skills/model-eval-suite/{01_req,02_artifacts,03_results}
 3. **截图是核心证据**：每张截图必须能佐证评分理由，空白图（<10KB）必须重新生成
 4. **评语要有人的味道**：不用"整体而言"等 AI 套话，每个任务末尾加 20-40 字人话总结
 5. **产物清理**：只保留 `ev_*.png` + `eval_report_*.html` + `doc_check.txt`，其余删除
-6. **评测脚本位置**：`gen_v2.py`（生成截图）和 `build_final_report.py`（打包报告）位于工作区根目录，不在 `model-eval-suite/` 内
+6. **评测脚本位置**：`scripts/gen_v2.py`（生成截图）和 `scripts/build_final_report.py`（打包报告）位于 `model-eval-suite/scripts/` 目录下
 
 ## 1. 读取评测基线
 
@@ -143,10 +143,11 @@ mkdir -p 02_skills/model-eval-suite/{01_req,02_artifacts,03_results}
 
 ### 5.1 截图生成
 
-使用 `gen_v2.py`（位于工作区根目录）生成 `ev_*.png` 佐证截图：
+使用 `scripts/gen_v2.py` 生成 `ev_*.png` 佐证截图（从 `model-eval-suite/` 目录执行）：
 
 ```powershell
-python gen_v2.py
+cd model-eval-suite
+python scripts/gen_v2.py
 ```
 
 - 脚本读取 `02_artifacts/<model>/<taskID>_<model>/` 下的产物代码，按 `ITEMS` 列表截取关键行
@@ -168,10 +169,11 @@ Get-ChildItem "03_results\ev_*.png" | Select-Object Name, Length
 
 ### 5.3 报告打包
 
-使用 `build_final_report.py` 将截图 base64 嵌入 HTML：
+使用 `scripts/build_final_report.py` 将截图 base64 嵌入 HTML（从 `model-eval-suite/` 目录执行）：
 
 ```powershell
-python build_final_report.py
+cd model-eval-suite
+python scripts/build_final_report.py
 ```
 
 - 输出 `03_results/eval_report_<model>.html`
@@ -218,4 +220,4 @@ python build_final_report.py
 1. 在 `references/task-suite.md` 追加任务 ID 与原始任务描述。
 2. 不改动评分口径；若确需改动，先在 `references/rubric.md` 记录版本变更。
 3. 保证新旧任务在同一输出模板下可并行比较。
-4. 新增任务后，同步更新 `gen_v2.py` 的 `ITEMS` 列表和 `build_final_report.py` 的截图引用。
+4. 新增任务后，同步更新 `scripts/gen_v2.py` 的 `ITEMS` 列表和 `scripts/build_final_report.py` 的截图引用。
