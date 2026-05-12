@@ -1,0 +1,80 @@
+﻿# V 模型用例-需求双向追溯检查工具 - 测试配置
+
+# ============================================
+# 测试配置说明
+# ============================================
+# 使用单个模块（BSWM）进行测试，验证工具的核心功能
+# 使用方法：python v_model_tracer.py --config config_test.yaml
+
+# ============================================
+# R4J 项目配置（测试）
+# ============================================
+r4j_projects:
+  # BSWM 模块 - 系统需求
+  - name: "BSWM-系统需求"
+    node_id: 142030                   # BSWM 模块需求（CPP 项目下）
+    project_id: 10001                 # CPP 项目 ID（请根据实际情况修改）
+    level: "system_requirement"       # 固定层级：系统需求
+
+# ============================================
+# Confluence 测试用例配置（测试）
+# ============================================
+confluence_testcases:
+  # BSWM 软件测试用例
+  - page_id: 106154865                # BSWM 测试用例页面 ID
+    test_type: "software_test"        # 测试类型：软件测试
+    traverse_children: false          # 单页面，不遍历子页面
+
+    # Excel 列名映射（统一格式）
+    excel_columns:
+      id: "用例ID"                    # 用例 ID 列名
+      name: "用例名称"                # 用例名称列名（可选）
+      trace: "对应需求编号"           # 追溯需求列名
+      result: "测试结果"              # 测试结果列名
+
+    # Sheet 名称识别规则（用于识别测试类型）
+    sheet_pattern: ".*测试用例.*"     # 正则表达式匹配 Sheet 名称
+
+    # 测试结果映射（支持多种表述方式）
+    result_mapping:
+      passed: ["通过", "PASS", "成功", "OK", "✓", "Pass"]
+      failed: ["失败", "FAIL", "错误", "NG", "✗", "Fail"]
+      not_executed: ["未执行", "N/A", "待执行", "-", "", "未测试"]
+
+# ============================================
+# V 模型映射规则
+# ============================================
+v_model_mapping:
+  unit_test: "detailed_design"        # 单元测试 ↔ 详细设计
+  integration_test: "architecture_design"  # 集成测试 ↔ 架构设计
+  software_test: "system_requirement"      # 软件测试 ↔ 系统需求
+
+# ============================================
+# 缓存配置
+# ============================================
+cache:
+  enabled: true                       # 是否启用缓存
+  ttl_hours: 24                       # 缓存有效期（小时）
+  dir: "tempFile/cache"               # 缓存目录
+
+# ============================================
+# 输出配置
+# ============================================
+output:
+  dir: "tempFile/reports"             # 报告输出目录
+  filename_template: "v_model_trace_report_BSWM_{timestamp}.xlsx"  # 文件名模板
+
+# ============================================
+# API 配置
+# ============================================
+api:
+  delay_ms: 2000                       # 请求延迟（毫秒），避免 API 限流
+  timeout: 30                         # 超时时间（秒）
+  retry_times: 3                      # 失败重试次数
+
+# ============================================
+# 日志配置
+# ============================================
+logging:
+  level: "DEBUG"                      # 日志级别：DEBUG（测试时使用详细日志）
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
