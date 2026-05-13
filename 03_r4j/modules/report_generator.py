@@ -15,6 +15,7 @@ class ReportGenerator:
     def __init__(
         self,
         output_cfg: Dict,
+        project_root: Path,
         testcases: List[TestCase],
         requirements: Dict[str, Requirement],
         issues: List[TraceIssue],
@@ -22,6 +23,7 @@ class ReportGenerator:
         pass_rate_rows: List[Dict],
     ):
         self.output_cfg = output_cfg
+        self.project_root = project_root.resolve()
         self.testcases = testcases
         self.requirements = requirements
         self.issues = issues
@@ -38,7 +40,8 @@ class ReportGenerator:
         return index
 
     def generate_report(self, output_filename: str | None = None) -> Path:
-        output_dir = Path(self.output_cfg.get("dir", "tempFile/reports"))
+        date_dir = datetime.now().strftime("%Y%m%d")
+        output_dir = self.project_root / "tempFile" / "reports" / date_dir
         output_dir.mkdir(parents=True, exist_ok=True)
 
         if output_filename:

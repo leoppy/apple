@@ -16,9 +16,10 @@ class RequirementLoader:
     def __init__(self, config: Dict, use_cache: bool = True):
         self.config = config
         self.use_cache = use_cache
+        self.project_root = Path(config.get("_project_root", Path(__file__).resolve().parents[1])).resolve()
         cache_cfg = config.get("cache", {})
         self.cache_enabled = bool(cache_cfg.get("enabled", True)) and use_cache
-        self.cache_dir = Path(cache_cfg.get("dir", "tempFile/cache"))
+        self.cache_dir = self.project_root / "tempFile" / "cache"
         self.cache_ttl_hours = int(cache_cfg.get("ttl_hours", 24))
 
         api_cfg = config.get("api", {})
@@ -66,7 +67,7 @@ class RequirementLoader:
         return requirements
 
     def _cache_file(self, node_id: int, project_id: int) -> Path:
-        return self.cache_dir / f"requirements_{project_id}_{node_id}.json"
+        return self.cache_dir / "requirements" / f"requirements_{project_id}_{node_id}.json"
 
     def _load_cache(self, cache_file: Path) -> List[Dict] | None:
         if not (self.cache_enabled and cache_file.exists()):

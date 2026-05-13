@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
 import time
 from pathlib import Path
@@ -19,9 +20,11 @@ class TestCaseLoader:
         self.config = config
         self.client = client
         self.use_cache = use_cache
+        self.logger = logging.getLogger(__name__)
+        self.project_root = Path(config.get("_project_root", Path(__file__).resolve().parents[1])).resolve()
         cache_cfg = config.get("cache", {})
         self.cache_enabled = bool(cache_cfg.get("enabled", True)) and use_cache
-        self.cache_dir = Path(cache_cfg.get("dir", "tempFile/cache"))
+        self.cache_dir = self.project_root / "tempFile" / "cache"
         self.cache_ttl_hours = int(cache_cfg.get("ttl_hours", 24))
 
     def load_all_testcases(self) -> List[TestCase]:
@@ -65,7 +68,7 @@ class TestCaseLoader:
         attachment_name = str(attachment.get("title", "attachment.xlsx"))
         safe_name = attachment_name.replace("\\", "_").replace("/", "_")
         cached_name = f"testcases_{page_id}_{attachment_id}_{attachment_version}_{safe_name}"
-        cache_file = self.cache_dir / cached_name
+        cache_file = self.cache_dir / "testcases" / cached_name
 
         if self.cache_enabled and cache_file.exists():
             age_seconds = time.time() - cache_file.stat().st_mtime
@@ -83,27 +86,36 @@ class TestCaseLoader:
         test_type = str(config.get("test_type", "")).strip()
 
         testcases: List[TestCase] = []
-        for sheet_name in wb.sheetnames:
+        selected_sheets = [name for name in wb.sheetnames if sheet_pattern.search(name)]
+        if not selected_sheets:
+            self.logger.warning("文件 %s 未命中 sheet_pattern，回退解析全部 Sheet", excel_path.name)
+            selected_sheets = list(wb.sheetnames)
+
+        for sheet_name in selected_sheets:
             if not sheet_pattern.search(sheet_name):
-                continue
+                self.logger.debug("Sheet %s 非 pattern 命中，走回退解析", sheet_name)
             ws = wb[sheet_name]
-            rows = ws.iter_rows(values_only=True)
-            try:
-                header_row = next(rows)
-            except StopIteration:
-                continue
-            if not header_row:
+            rows = list(ws.iter_rows(values_only=True))
+            if not rows:
                 continue
 
-            header_map = {str(v).strip(): idx for idx, v in enumerate(header_row) if v is not None}
-            id_col = header_map.get(str(excel_columns.get("id", "")).strip())
-            name_col = header_map.get(str(excel_columns.get("name", "")).strip())
-            trace_col = header_map.get(str(excel_columns.get("trace", "")).strip())
-            result_col = header_map.get(str(excel_columns.get("result", "")).strip())
+            header_idx, header_map = self._find_header_map(rows, excel_columns)
+            if header_idx < 0:
+                self.logger.warning("文件 %s / Sheet %s 未识别到表头，已跳过", excel_path.name, sheet_name)
+                continue
+
+            id_col = self._find_col(header_map, [excel_columns.get("id", ""), "用例ID", "测试用例ID", "用例编号", "ID"])
+            name_col = self._find_col(header_map, [excel_columns.get("name", ""), "用例名称", "测试项名称", "测试用例名称"])
+            trace_col = self._find_col(
+                header_map,
+                [excel_columns.get("trace", ""), "对应需求编号", "对应需求ID", "追溯需求", "关联需求", "需求编号", "需求ID"],
+            )
+            result_col = self._find_col(header_map, [excel_columns.get("result", ""), "测试结果", "执行结果", "结果"])
             if id_col is None or trace_col is None:
+                self.logger.warning("文件 %s / Sheet %s 列映射失败(id/trace)", excel_path.name, sheet_name)
                 continue
 
-            for row in rows:
+            for row in rows[header_idx + 1 :]:
                 case_id = self._safe_cell(row, id_col)
                 if not case_id:
                     continue
@@ -127,6 +139,42 @@ class TestCaseLoader:
         return testcases
 
     @staticmethod
+    def _normalize_header(value: str) -> str:
+        return re.sub(r"\s+", "", str(value or "")).replace("\u3000", "").strip().lower()
+
+    def _find_header_map(self, rows: List[tuple], excel_columns: Dict) -> tuple[int, Dict[str, int]]:
+        expected_id = self._normalize_header(excel_columns.get("id", "用例ID"))
+        expected_trace = self._normalize_header(excel_columns.get("trace", "对应需求编号"))
+        for idx, row in enumerate(rows[:20]):
+            header_map: Dict[str, int] = {}
+            for col_idx, cell in enumerate(row):
+                if cell is None:
+                    continue
+                normalized = self._normalize_header(cell)
+                if normalized:
+                    header_map[normalized] = col_idx
+            if not header_map:
+                continue
+            if expected_id in header_map and expected_trace in header_map:
+                return idx, header_map
+            # 兼容常见别名
+            id_col = self._find_col(header_map, [excel_columns.get("id", ""), "用例ID", "测试用例ID", "用例编号", "ID"])
+            trace_col = self._find_col(
+                header_map,
+                [excel_columns.get("trace", ""), "对应需求编号", "对应需求ID", "追溯需求", "关联需求", "需求编号", "需求ID"],
+            )
+            if id_col is not None and trace_col is not None:
+                return idx, header_map
+        return -1, {}
+
+    def _find_col(self, header_map: Dict[str, int], candidates: List[str]) -> int | None:
+        for candidate in candidates:
+            normalized = self._normalize_header(candidate)
+            if normalized and normalized in header_map:
+                return header_map[normalized]
+        return None
+
+    @staticmethod
     def _safe_cell(row: tuple, col_idx: int | None) -> str:
         if col_idx is None or col_idx >= len(row):
             return ""
@@ -139,7 +187,11 @@ class TestCaseLoader:
     def extract_traced_keys(trace_cell_value: str) -> Set[str]:
         if not trace_cell_value:
             return set()
-        keys = ISSUE_KEY_PATTERN.findall(trace_cell_value.upper())
+        normalized = str(trace_cell_value).upper()
+        normalized = normalized.replace("－", "-").replace("—", "-").replace("–", "-")
+        normalized = normalized.replace("_", "-")
+        normalized = re.sub(r"\s*-\s*", "-", normalized)
+        keys = ISSUE_KEY_PATTERN.findall(normalized)
         return set(keys)
 
     @staticmethod
@@ -159,7 +211,7 @@ class TestCaseLoader:
         return "not_executed"
 
     def dump_testcase_cache(self, testcases: List[TestCase]) -> Path:
-        cache_file = self.cache_dir / "testcases_snapshot.json"
+        cache_file = self.cache_dir / "testcases" / "testcases_snapshot.json"
         cache_file.parent.mkdir(parents=True, exist_ok=True)
         payload = [
             {

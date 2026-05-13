@@ -34,7 +34,7 @@ test_mode:
 r4j_projects:
   # 项目 1：CPP 项目（系统需求）
   - name: "CPP-系统需求"
-    node_id: 139342                   # 软件需求规范_V3.1
+    node_id: 61706                    # 总软件需求（CPP）
     project_id: 10001                 # CPP 项目 ID（请根据实际情况修改）
     level: "system_requirement"       # 固定层级：系统需求
 

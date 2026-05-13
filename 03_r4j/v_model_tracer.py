@@ -15,12 +15,20 @@ from modules.testcase_loader import TestCaseLoader
 from modules.tracer import Tracer
 
 
+def _project_root_from_config(config: Dict) -> Path:
+    root = config.get("_project_root")
+    if root:
+        return Path(root).resolve()
+    return Path(__file__).resolve().parent
+
+
 def load_config(config_path: str) -> Dict:
-    path = Path(config_path)
+    path = Path(config_path).resolve()
     if not path.exists():
         raise FileNotFoundError(f"配置文件不存在: {path}")
     with path.open("r", encoding="utf-8") as f:
         cfg = yaml.safe_load(f) or {}
+    cfg["_project_root"] = str(path.parent)
 
     test_mode = cfg.get("test_mode", {})
     if test_mode.get("enabled"):
@@ -37,7 +45,11 @@ def setup_logging(config: Dict, verbose: bool = False, log_file: str | None = No
 
     handlers = [logging.StreamHandler()]
     if log_file:
-        handlers.append(logging.FileHandler(log_file, encoding="utf-8"))
+        project_root = _project_root_from_config(config)
+        log_dir = project_root / "tempFile" / "logs"
+        log_dir.mkdir(parents=True, exist_ok=True)
+        log_name = Path(log_file).name
+        handlers.append(logging.FileHandler(log_dir / log_name, encoding="utf-8"))
 
     logging.basicConfig(level=level, format=fmt, handlers=handlers, force=True)
 
@@ -46,6 +58,7 @@ def run(args: argparse.Namespace) -> Path:
     config = load_config(args.config)
     setup_logging(config, verbose=args.verbose, log_file=args.log)
     logger = logging.getLogger("v_model_tracer")
+    project_root = _project_root_from_config(config)
 
     logger.info("开始加载需求数据")
     requirement_loader = RequirementLoader(config=config, use_cache=not args.no_cache)
@@ -78,6 +91,7 @@ def run(args: argparse.Namespace) -> Path:
 
     report_generator = ReportGenerator(
         output_cfg=config.get("output", {}),
+        project_root=project_root,
         testcases=testcases,
         requirements=requirements,
         issues=issues,
