@@ -1,3 +1,4 @@
+# 该脚本仅做测试使用，暂时放到这个目录，一般不用这个脚本
 import json
 import os
 import time

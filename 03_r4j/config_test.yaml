@@ -12,7 +12,7 @@
 r4j_projects:
   # SecOC 模块 - 系统需求
   - name: "SecOC-系统需求"
-    node_id: 68556                    # SecOC 模块需求（CPP 项目 folderId）
+    node_id: 68554                    # SecOC 模块需求（CPP 项目 folderId）
     project_id: 10001                 # CPP 项目 ID
     level: "system_requirement"       # 固定层级：系统需求
 
