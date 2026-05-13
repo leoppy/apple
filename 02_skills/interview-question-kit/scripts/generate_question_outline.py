@@ -1,5 +1,6 @@
 ﻿import argparse
 import json
+import math
 import os
 import re
 from typing import Dict, List, Tuple
@@ -117,6 +118,27 @@ def maybe_customize_from_resume(resume_txt: str, count: int) -> List[Dict[str, s
                 "tags": ["行为题", "跨部门协作", "场景题"],
             }
         )
+    if any(x in lower for x in ["等价类", "边界值", "场景法", "判定表", "用例设计", "测试用例"]):
+        hints.append(
+            {
+                "question": "以一个你参与过的功能模块为例，讲一下你如何选择测试用例设计方法（等价类/边界值/场景法等），以及如何衡量用例的覆盖充分性？",
+                "tags": ["项目深挖", "工程习惯", "测试工程"],
+            }
+        )
+    if any(x in lower for x in ["jmeter", "压测", "性能测试", "并发"]):
+        hints.append(
+            {
+                "question": "你使用JMeter做压测时，如何确定压测场景和并发量？拿到压测报告后你关注哪些指标，如何判断瓶颈？",
+                "tags": ["项目深挖", "场景题", "测试工程"],
+            }
+        )
+    if any(x in lower for x in ["禅道", "缺陷管理", "bug", "提交缺陷"]):
+        hints.append(
+            {
+                "question": "你在禅道上提交的bug中，挑一个最典型的说说：你是怎样描述缺陷、定位前后端、推动修复并做回归验证的？",
+                "tags": ["项目深挖", "工程习惯", "场景题"],
+            }
+        )
 
     out: List[Dict[str, str]] = []
     for i, h in enumerate(hints[:count], start=1):
@@ -180,10 +202,12 @@ def split_ratio(total: int, custom_ratio: int, common_ratio: int) -> Tuple[int, 
 def main() -> None:
     parser = argparse.ArgumentParser(description="生成候选题梗概（先选题，再定稿）")
     parser.add_argument("--candidate", required=True, help="候选人姓名")
-    parser.add_argument("--total", type=int, default=6, help="候选题总数")
+    parser.add_argument("--total", type=int, default=6, help="最终题量目标（不是候选数）")
     parser.add_argument("--tags", default="", help="逗号分隔标签")
     parser.add_argument("--resume-txt", default="", help="简历文本路径（可选）")
     parser.add_argument("--ratio", default="2:1", help="定制:通用 比例，默认2:1")
+    parser.add_argument("--outline-multiplier", type=float, default=1.5, help="候选题倍率，默认1.5")
+    parser.add_argument("--outline-total", type=int, default=0, help="候选题总数覆盖值；>0 时优先于倍率")
     parser.add_argument("--bank-dir", default=os.path.join("question_bank", "common"), help="通用题库目录")
     parser.add_argument("--output-dir", default="outputs", help="输出目录")
     args = parser.parse_args()
@@ -196,7 +220,9 @@ def main() -> None:
         raise ValueError("--ratio 格式错误，应为 a:b，例如 2:1") from exc
 
     common_pool = load_common_questions(args.bank_dir)
-    custom_n, common_n = split_ratio(args.total, c_ratio, g_ratio)
+    outline_total = args.outline_total if args.outline_total > 0 else int(math.ceil(args.total * args.outline_multiplier))
+    default_outline_total = int(math.ceil(args.total * args.outline_multiplier))
+    custom_n, common_n = split_ratio(outline_total, c_ratio, g_ratio)
 
     custom_candidates = maybe_customize_from_resume(args.resume_txt, custom_n)
     if len(custom_candidates) < custom_n:
@@ -219,6 +245,11 @@ def main() -> None:
 
     data = {
         "candidate": args.candidate,
+        "final_target_total": args.total,
+        "outline_target_total": outline_total,
+        "outline_target_by_formula": default_outline_total,
+        "outline_total_overridden": args.outline_total > 0,
+        "outline_multiplier": args.outline_multiplier,
         "total": len(serial_items),
         "ratio": args.ratio,
         "notes": {
@@ -233,9 +264,25 @@ def main() -> None:
 
     with open(outline_md, "w", encoding="utf-8") as f:
         f.write(f"# {args.candidate} 候选题梗概\n\n")
+        f.write("## 约束回显\n")
+        f.write(f"- 最终题量 N：{args.total}\n")
+        f.write(f"- 配比（定制:通用）：{args.ratio}\n")
+        f.write(f"- 候选倍率：{args.outline_multiplier}\n")
+        if args.outline_total > 0:
+            f.write(f"- 候选总数：{outline_total}（用户覆盖；公式值={default_outline_total}）\n\n")
+        else:
+            f.write(f"- 候选总数：{outline_total}（按 ceil(N*倍率) 计算）\n\n")
+
+        f.write(f"- 最终题量目标：{args.total}\n")
+        f.write(f"- 候选题目标：{outline_total}\n")
         f.write(f"- 总数：{len(serial_items)}\n")
         f.write(f"- 配比（定制:通用）：{args.ratio}\n")
+        f.write(f"- 候选倍率：{args.outline_multiplier}\n")
         f.write("- 说明：先选题，再生成最终面试题文档\n\n")
+
+        if len(serial_items) < outline_total:
+            f.write("## 候选题数量提示\n")
+            f.write(f"- 目标候选数为 {outline_total}，当前可提供 {len(serial_items)}（受题库与简历信息限制）。\n\n")
 
         if bad:
             f.write("## 题库合规预警\n")

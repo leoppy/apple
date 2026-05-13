@@ -34,6 +34,11 @@ def main() -> None:
     parser.add_argument("--pick", required=True, help="例如 1,2,4")
     parser.add_argument("--bank-dir", default=os.path.join("question_bank", "common"))
     parser.add_argument("--output-dir", default="outputs")
+    parser.add_argument(
+        "--allow-mismatch-final-count",
+        action="store_true",
+        help="允许最终选题数量与最终题量目标不一致（默认严格校验）",
+    )
     args = parser.parse_args()
 
     with open(args.outline_json, "r", encoding="utf-8") as f:
@@ -42,6 +47,13 @@ def main() -> None:
     picks = set(parse_pick(args.pick))
     items: List[Dict] = data.get("items", [])
     chosen = [it for it in items if int(it.get("index", -1)) in picks]
+    final_target_total = int(data.get("final_target_total", 0))
+
+    if (not args.allow_mismatch_final_count) and final_target_total > 0 and len(chosen) != final_target_total:
+        raise ValueError(
+            f"最终选题数量不匹配：目标 {final_target_total}，当前 {len(chosen)}。"
+            "如需放宽，请追加 --allow-mismatch-final-count"
+        )
 
     os.makedirs(args.output_dir, exist_ok=True)
     out_path = os.path.join(args.output_dir, f"{args.candidate}_面试题.md")
@@ -50,7 +62,10 @@ def main() -> None:
         f.write(f"# {args.candidate} 面试题\n\n")
         f.write("## 选题信息\n")
         f.write(f"- 候选清单：{os.path.basename(args.outline_json)}\n")
-        f.write(f"- 已选题号：{args.pick}\n\n")
+        f.write(f"- 已选题号：{args.pick}\n")
+        f.write(f"- 最终题量目标：{final_target_total}\n")
+        f.write(f"- 实际选题数量：{len(chosen)}\n")
+        f.write(f"- 严格数量校验：{'否（已放宽）' if args.allow_mismatch_final_count else '是'}\n\n")
 
         f.write("## 最终题目\n")
         qn = 1
