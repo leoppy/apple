@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import time
 from pathlib import Path
@@ -19,7 +20,19 @@ class RequirementLoader:
         self.project_root = Path(config.get("_project_root", Path(__file__).resolve().parents[1])).resolve()
         cache_cfg = config.get("cache", {})
         self.cache_enabled = bool(cache_cfg.get("enabled", True)) and use_cache
-        self.cache_dir = self.project_root / "tempFile" / "cache"
+        cache_base_dir = Path(cache_cfg.get("dir", "tempFile/cache"))
+        if cache_base_dir.is_absolute():
+            resolved_cache_base = cache_base_dir
+        else:
+            resolved_cache_base = (self.project_root / cache_base_dir).resolve()
+
+        config_cache_namespace = str(cache_cfg.get("namespace", "")).strip()
+        if not config_cache_namespace:
+            config_cache_namespace = str(config.get("_config_name", "")).strip()
+        if not config_cache_namespace:
+            config_cache_namespace = "default"
+
+        self.cache_dir = resolved_cache_base / config_cache_namespace
         self.cache_ttl_hours = int(cache_cfg.get("ttl_hours", 24))
 
         api_cfg = config.get("api", {})
@@ -40,6 +53,8 @@ class RequirementLoader:
 
     def load_all_projects(self, project_filter: Optional[str] = None) -> Dict[str, Requirement]:
         requirements: Dict[str, Requirement] = {}
+        issue_fields_cache = self._load_issue_fields_cache()
+
         for project in self.config.get("r4j_projects", []):
             name = str(project.get("name", "")).strip()
             if project_filter and project_filter not in name:
@@ -54,6 +69,7 @@ class RequirementLoader:
                 key = str(item.get("key", "")).strip()
                 if not key:
                     continue
+                fields = self._fetch_issue_fields(key, issue_fields_cache)
                 requirements[key] = Requirement(
                     key=key,
                     name=str(item.get("name", "")).strip(),
@@ -63,7 +79,14 @@ class RequirementLoader:
                     node_id=int(project["node_id"]),
                     parent_id=item.get("parent_id"),
                     description=str(item.get("description", "")).strip(),
+                    module=fields.get("module", ""),
+                    components=fields.get("components", ""),
+                    issue_type=fields.get("issue_type", ""),
+                    labels=fields.get("labels", ""),
+                    priority=fields.get("priority", ""),
                 )
+
+        self._save_issue_fields_cache(issue_fields_cache)
         return requirements
 
     def _cache_file(self, node_id: int, project_id: int) -> Path:
@@ -97,6 +120,8 @@ class RequirementLoader:
 
         queue: List[tuple[int, int]] = [(node_id, 0)]
         items: List[Dict] = []
+        logger = logging.getLogger(__name__)
+
         while queue:
             folder_id, current_level = queue.pop(0)
             payload = {
@@ -105,7 +130,15 @@ class RequirementLoader:
                 "projectId": project_id,
                 "queryParams": str(folder_id),
             }
-            data = self._post_json(headers=headers, payload=payload)
+            try:
+                data = self._post_json(headers=headers, payload=payload)
+            except RuntimeError as e:
+                # 如果遇到 500 错误，记录警告并跳过该文件夹
+                if "500 Server Error" in str(e):
+                    logger.warning(f"跳过文件夹 {folder_id}（API 返回 500 错误，可能是空文件夹）: {e}")
+                    continue
+                raise
+
             item_list = data.get("itemList", [])
             for item in item_list:
                 item_type = "Issue" if item.get("key") else "Folder"
@@ -143,4 +176,87 @@ class RequirementLoader:
                 return resp.json()
             except Exception as ex:  # noqa: BLE001
                 last_error = ex
+                # 记录响应内容以便调试
+                if hasattr(ex, 'response') and ex.response is not None:
+                    try:
+                        error_detail = ex.response.text[:500]
+                        logging.getLogger(__name__).error(f"API 错误详情: {error_detail}")
+                    except Exception:  # noqa: BLE001
+                        pass
         raise RuntimeError(f"Jira 请求失败: {payload}, error={last_error}")
+
+    def _issue_fields_cache_file(self) -> Path:
+        return self.cache_dir / "issue_fields_cache.json"
+
+    def _load_issue_fields_cache(self) -> Dict[str, Dict]:
+        """加载 issue fields 缓存"""
+        cache_file = self._issue_fields_cache_file()
+        if not (self.cache_enabled and cache_file.exists()):
+            return {}
+        try:
+            age_seconds = time.time() - cache_file.stat().st_mtime
+            if age_seconds > self.cache_ttl_hours * 3600:
+                return {}
+            return json.loads(cache_file.read_text(encoding="utf-8"))
+        except Exception:  # noqa: BLE001
+            return {}
+
+    def _save_issue_fields_cache(self, cache: Dict[str, Dict]) -> None:
+        """保存 issue fields 缓存"""
+        if not self.cache_enabled:
+            return
+        cache_file = self._issue_fields_cache_file()
+        cache_file.parent.mkdir(parents=True, exist_ok=True)
+        cache_file.write_text(json.dumps(cache, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    def _fetch_issue_fields(self, issue_key: str, cache: Dict[str, Dict]) -> Dict[str, str]:
+        """获取 Jira issue 的多个字段信息（带缓存）"""
+        if not issue_key:
+            return {"module": "", "components": "", "issue_type": "", "labels": "", "priority": ""}
+
+        # 先查缓存
+        if issue_key in cache:
+            return cache[issue_key]
+
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self.jira_token}",
+        }
+
+        try:
+            url = f"{self.jira_url}/rest/api/2/issue/{issue_key}"
+            resp = requests.get(url, headers=headers, timeout=self.timeout)
+            resp.raise_for_status()
+            data = resp.json()
+            fields = data.get("fields", {})
+
+            # 提取 components
+            components = fields.get("components", [])
+            component_names = [comp.get("name", "") for comp in components if comp.get("name")]
+            components_str = ", ".join(component_names)
+            module_str = components_str
+
+            # 提取 issue type
+            issue_type = fields.get("issuetype", {}).get("name", "")
+
+            # 提取 labels
+            labels = fields.get("labels", [])
+            labels_str = ", ".join(labels) if labels else ""
+
+            # 提取 priority
+            priority = fields.get("priority", {})
+            priority_str = priority.get("name", "") if priority else ""
+
+            result = {
+                "module": module_str,
+                "components": components_str,
+                "issue_type": issue_type,
+                "labels": labels_str,
+                "priority": priority_str,
+            }
+            cache[issue_key] = result
+            return result
+        except Exception:  # noqa: BLE001
+            result = {"module": "", "components": "", "issue_type": "", "labels": "", "priority": ""}
+            cache[issue_key] = result
+            return result

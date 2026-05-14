@@ -21,7 +21,7 @@ r4j_projects:
 # ============================================
 confluence_testcases:
   # SecOC 软件测试用例
-  - page_id: 106154865                # SecOC 测试用例页面 ID（与你当前页面一致）
+  - page_id: 106154865                # SecOC 测试用例页面 ID
     test_type: "software_test"        # 测试类型：软件测试
     traverse_children: false          # 单页面，不遍历子页面
 
@@ -56,6 +56,7 @@ cache:
   enabled: true                       # 是否启用缓存
   ttl_hours: 24                       # 缓存有效期（小时）
   dir: "tempFile/cache"               # 缓存目录
+  namespace: "software_test"          # 缓存命名空间（与其他测试类型隔离）
 
 # ============================================
 # 输出配置

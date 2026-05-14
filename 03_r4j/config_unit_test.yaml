@@ -1,0 +1,49 @@
+# V 模型用例-需求双向追溯检查工具 - 单元测试配置
+
+r4j_projects:
+  - name: "CPD-详细设计"
+    node_id: 9500
+    project_id: 10002
+    level: "detailed_design"
+
+confluence_testcases:
+  - page_id: 98511452
+    test_type: "unit_test"
+    traverse_children: false
+
+    excel_columns:
+      id: "用例ID"
+      name: "用例名称"
+      trace: "对应需求编号"
+      result: "测试结果"
+
+    sheet_pattern: ".*测试用例.*"
+
+    result_mapping:
+      passed: ["通过", "PASS", "成功", "OK", "✓", "Pass"]
+      failed: ["失败", "FAIL", "错误", "NG", "✗", "Fail"]
+      not_executed: ["未执行", "N/A", "待执行", "-", "", "未测试"]
+
+v_model_mapping:
+  unit_test: "detailed_design"
+  integration_test: "architecture_design"
+  software_test: "system_requirement"
+
+cache:
+  enabled: true
+  ttl_hours: 24
+  dir: "tempFile/cache"
+  namespace: "unit_test"
+
+output:
+  dir: "tempFile/reports"
+  filename_template: "v_model_trace_report_unit_{timestamp}.xlsx"
+
+api:
+  delay_ms: 2000
+  timeout: 30
+  retry_times: 3
+
+logging:
+  level: "DEBUG"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"

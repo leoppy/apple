@@ -14,6 +14,11 @@ class Requirement:
     node_id: int
     parent_id: int | None = None
     description: str = ""
+    module: str = ""
+    components: str = ""
+    issue_type: str = ""
+    labels: str = ""
+    priority: str = ""
 
 
 @dataclass
@@ -25,6 +30,7 @@ class TestCase:
     result: str
     source_file: str
     source_page: str
+    module: str = ""
 
 
 @dataclass
@@ -34,3 +40,4 @@ class TraceIssue:
     testcase_id: str
     requirement_key: str
     description: str
+    components: str = ""

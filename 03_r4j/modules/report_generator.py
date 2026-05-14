@@ -19,27 +19,28 @@ class ReportGenerator:
         testcases: List[TestCase],
         requirements: Dict[str, Requirement],
         issues: List[TraceIssue],
-        coverage_rows: List[Dict],
+        coverage_detail_rows: List[Dict],
+        coverage_summary_rows: List[Dict],
+        orphan_rows: List[Dict],
         pass_rate_rows: List[Dict],
+        module_overview_rows: List[Dict],
     ):
         self.output_cfg = output_cfg
         self.project_root = project_root.resolve()
         self.testcases = testcases
         self.requirements = requirements
         self.issues = issues
-        self.coverage_rows = coverage_rows
+        self.coverage_detail_rows = coverage_detail_rows
+        self.coverage_summary_rows = coverage_summary_rows
+        self.orphan_rows = orphan_rows
         self.pass_rate_rows = pass_rate_rows
-        self.issue_index = self._build_issue_index(issues)
+        self.module_overview_rows = module_overview_rows
 
-    @staticmethod
-    def _build_issue_index(issues: List[TraceIssue]) -> Dict[tuple[str, str], List[TraceIssue]]:
-        index: Dict[tuple[str, str], List[TraceIssue]] = {}
-        for issue in issues:
-            key = (issue.testcase_id, issue.requirement_key)
-            index.setdefault(key, []).append(issue)
-        return index
-
-    def generate_report(self, output_filename: str | None = None) -> Path:
+    def generate_report(
+        self,
+        output_filename: str | None = None,
+        report_type: str = "coverage",
+    ) -> Path:
         date_dir = datetime.now().strftime("%Y%m%d")
         output_dir = self.project_root / "tempFile" / "reports" / date_dir
         output_dir.mkdir(parents=True, exist_ok=True)
@@ -47,16 +48,35 @@ class ReportGenerator:
         if output_filename:
             filename = output_filename
         else:
-            template = self.output_cfg.get("filename_template", "v_model_trace_report_{timestamp}.xlsx")
-            filename = template.format(timestamp=datetime.now().strftime("%Y%m%d_%H%M%S"))
+            # 从需求中提取唯一的 level 列表
+            levels = sorted(set(req.level for req in self.requirements.values()))
+            level_str = "_".join(levels) if levels else "unknown"
+
+            # 根据报告类型生成文件名
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            if report_type == "coverage":
+                filename = f"report_{level_str}_coverage_{timestamp}.xlsx"
+            elif report_type == "pass-rate":
+                filename = f"report_{level_str}_passRate_{timestamp}.xlsx"
+            else:
+                filename = f"report_{level_str}_{timestamp}.xlsx"
+
         output_path = output_dir / filename
 
         wb = Workbook()
         wb.remove(wb.active)
-        self.create_trace_matrix_sheet(wb)
-        self.create_coverage_sheet(wb)
-        self.create_issues_sheet(wb)
-        self.create_pass_rate_sheet(wb)
+
+        if report_type == "coverage":
+            self.create_module_overview_sheet(wb)
+            self.create_coverage_summary_sheet(wb)
+            self.create_coverage_detail_sheet(wb)
+            self.create_orphan_traces_sheet(wb)
+        elif report_type == "pass-rate":
+            self.create_pass_rate_sheet(wb)
+
+        wb.save(output_path)
+        return output_path
+
         wb.save(output_path)
         return output_path
 
@@ -84,11 +104,26 @@ class ReportGenerator:
 
         self._format_sheet(ws)
 
-    def create_coverage_sheet(self, wb: Workbook) -> None:
-        ws = wb.create_sheet("覆盖率统计")
-        headers = ["项目", "层级", "总需求数", "已覆盖数", "未覆盖数", "覆盖率"]
+    def create_module_overview_sheet(self, wb: Workbook) -> None:
+        ws = wb.create_sheet("模块概览")
+        headers = ["模块", "未覆盖需求数", "未覆盖需求列表"]
         ws.append(headers)
-        for row in self.coverage_rows:
+        for row in self.module_overview_rows:
+            ws.append(
+                [
+                    row["module"],
+                    row["uncovered_count"],
+                    row["uncovered_keys"],
+                ]
+            )
+        self._format_sheet(ws)
+
+    def create_coverage_summary_sheet(self, wb: Workbook) -> None:
+        ws = wb.create_sheet("覆盖率汇总")
+        headers = ["项目", "层级", "总需求数", "已覆盖", "未覆盖", "覆盖率"]
+        ws.append(headers)
+
+        for row in self.coverage_summary_rows:
             ws.append(
                 [
                     row["project"],
@@ -99,26 +134,46 @@ class ReportGenerator:
                     row["coverage_rate"],
                 ]
             )
+
         self._format_sheet(ws, percentage_columns={6})
+
+    def create_coverage_detail_sheet(self, wb: Workbook) -> None:
+        ws = wb.create_sheet("覆盖率明细")
+        headers = ["需求Key", "模块", "类型", "标签", "优先级", "是否覆盖"]
+        ws.append(headers)
+
+        for row in self.coverage_detail_rows:
+            ws.append(
+                [
+                    row["requirement_key"],
+                    row["module"],
+                    row["issue_type"],
+                    row["labels"],
+                    row["priority"],
+                    row["is_covered"],
+                ]
+            )
+
+        self._format_sheet(ws)
 
     def create_issues_sheet(self, wb: Workbook) -> None:
         ws = wb.create_sheet("问题清单")
-        headers = ["严重性", "问题类型", "用例ID", "需求Key", "问题描述"]
+        headers = ["严重性", "问题类型", "用例ID", "需求Key", "模块", "问题描述"]
         ws.append(headers)
         severity_order = {"high": 0, "medium": 1, "low": 2}
         sorted_issues = sorted(self.issues, key=lambda x: severity_order.get(x.severity, 99))
         for issue in sorted_issues:
-            ws.append([issue.severity, issue.issue_type, issue.testcase_id, issue.requirement_key, issue.description])
+            ws.append([issue.severity, issue.issue_type, issue.testcase_id, issue.requirement_key, issue.components, issue.description])
         self._format_sheet(ws)
 
     def create_pass_rate_sheet(self, wb: Workbook) -> None:
         ws = wb.create_sheet("通过率统计")
-        headers = ["测试类型", "总用例数", "通过", "失败", "未执行", "通过率"]
+        headers = ["模块", "总用例数", "通过", "失败", "未执行", "通过率"]
         ws.append(headers)
         for row in self.pass_rate_rows:
             ws.append(
                 [
-                    row["test_type"],
+                    row["module"],
                     row["total"],
                     row["passed"],
                     row["failed"],
@@ -127,6 +182,21 @@ class ReportGenerator:
                 ]
             )
         self._format_sheet(ws, percentage_columns={6})
+
+    def create_orphan_traces_sheet(self, wb: Workbook) -> None:
+        ws = wb.create_sheet("孤立追溯")
+        headers = ["需求Key", "追溯用例数", "用例ID列表", "模块"]
+        ws.append(headers)
+        for row in self.orphan_rows:
+            ws.append(
+                [
+                    row["requirement_key"],
+                    row["testcase_count"],
+                    row["testcase_ids"],
+                    row["modules"],
+                ]
+            )
+        self._format_sheet(ws)
 
     @staticmethod
     def _format_sheet(ws, percentage_columns: set[int] | None = None) -> None:
@@ -153,3 +223,4 @@ class ReportGenerator:
                 cell = ws.cell(row=row, column=col)
                 cell.number_format = "0.00%"
         ws.freeze_panes = "A2"
+        ws.auto_filter.ref = ws.dimensions

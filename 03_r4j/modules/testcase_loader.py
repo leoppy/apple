@@ -24,7 +24,19 @@ class TestCaseLoader:
         self.project_root = Path(config.get("_project_root", Path(__file__).resolve().parents[1])).resolve()
         cache_cfg = config.get("cache", {})
         self.cache_enabled = bool(cache_cfg.get("enabled", True)) and use_cache
-        self.cache_dir = self.project_root / "tempFile" / "cache"
+        cache_base_dir = Path(cache_cfg.get("dir", "tempFile/cache"))
+        if cache_base_dir.is_absolute():
+            resolved_cache_base = cache_base_dir
+        else:
+            resolved_cache_base = (self.project_root / cache_base_dir).resolve()
+
+        config_cache_namespace = str(cache_cfg.get("namespace", "")).strip()
+        if not config_cache_namespace:
+            config_cache_namespace = str(config.get("_config_name", "")).strip()
+        if not config_cache_namespace:
+            config_cache_namespace = "default"
+
+        self.cache_dir = resolved_cache_base / config_cache_namespace
         self.cache_ttl_hours = int(cache_cfg.get("ttl_hours", 24))
 
     def load_all_testcases(self) -> List[TestCase]:
@@ -84,6 +96,7 @@ class TestCaseLoader:
         excel_columns = config.get("excel_columns", {})
         result_mapping = config.get("result_mapping", {})
         test_type = str(config.get("test_type", "")).strip()
+        module = self._extract_module_from_filename(excel_path.name)
 
         testcases: List[TestCase] = []
         selected_sheets = [name for name in wb.sheetnames if sheet_pattern.search(name)]
@@ -133,6 +146,7 @@ class TestCaseLoader:
                         result=mapped_result,
                         source_file=excel_path.name,
                         source_page=source_page,
+                        module=module,
                     )
                 )
         wb.close()
@@ -141,6 +155,42 @@ class TestCaseLoader:
     @staticmethod
     def _normalize_header(value: str) -> str:
         return re.sub(r"\s+", "", str(value or "")).replace("\u3000", "").strip().lower()
+
+    @staticmethod
+    def _extract_module_from_filename(filename: str) -> str:
+        """\u4ece\u6587\u4ef6\u540d\u4e2d\u63d0\u53d6\u6a21\u5757\u540d
+        \u683c\u5f0f: testcases_106154865_106155659_3_[PH-PRD-QC-007-2024]_\u8f6f\u4ef6\u6d4b\u8bd5\u89c4\u8303\u53ca\u62a5\u544a_BswM_TC4D9.xlsx
+        \u63d0\u53d6"\u89c4\u8303\u53ca\u62a5\u544a"\u4e4b\u540e\u3001TC\u5f00\u5934\u4e4b\u524d\u7684\u90e8\u5206\u4f5c\u4e3a\u6a21\u5757\u540d
+        """
+        if not filename:
+            return ""
+        # \u53bb\u6389\u6269\u5c55\u540d
+        name_without_ext = filename.rsplit(".", 1)[0] if "." in filename else filename
+        # \u6309\u4e0b\u5212\u7ebf\u5206\u5272
+        parts = name_without_ext.split("_")
+
+        # \u627e\u5230"\u89c4\u8303\u53ca\u62a5\u544a"\u7684\u4f4d\u7f6e
+        report_idx = -1
+        for i, part in enumerate(parts):
+            if "\u89c4\u8303\u53ca\u62a5\u544a" in part or "\u62a5\u544a" in part:
+                report_idx = i
+                break
+
+        # \u4ece"\u89c4\u8303\u53ca\u62a5\u544a"\u4e4b\u540e\u5f00\u59cb\u67e5\u627e\u6a21\u5757\u540d
+        if report_idx >= 0 and report_idx + 1 < len(parts):
+            # \u63d0\u53d6"\u89c4\u8303\u53ca\u62a5\u544a"\u4e4b\u540e\u7684\u7b2c\u4e00\u4e2a\u975eTC\u5f00\u5934\u7684\u90e8\u5206
+            for i in range(report_idx + 1, len(parts)):
+                part = parts[i]
+                # \u8df3\u8fc7TC\u5f00\u5934\u7684\u90e8\u5206\uff08\u5982TC4D9\uff09
+                if part and not part.upper().startswith("TC"):
+                    return part
+
+        # \u515c\u5e95\uff1a\u5982\u679c\u6ca1\u627e\u5230\uff0c\u8fd4\u56de\u5012\u6570\u7b2c\u4e00\u4e2a\u975eTC\u5f00\u5934\u7684\u90e8\u5206
+        for part in reversed(parts):
+            if part and not part.upper().startswith("TC"):
+                return part
+
+        return ""
 
     def _find_header_map(self, rows: List[tuple], excel_columns: Dict) -> tuple[int, Dict[str, int]]:
         expected_id = self._normalize_header(excel_columns.get("id", "用例ID"))
@@ -222,6 +272,7 @@ class TestCaseLoader:
                 "result": tc.result,
                 "source_file": tc.source_file,
                 "source_page": tc.source_page,
+                "module": tc.module,
             }
             for tc in testcases
         ]

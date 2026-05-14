@@ -29,6 +29,7 @@ class Tracer:
                             testcase_id=tc.case_id,
                             requirement_key=key,
                             description=f"追溯需求不存在: {key}",
+                            components="",
                         )
                     )
         return issues
@@ -48,6 +49,7 @@ class Tracer:
                         testcase_id="-",
                         requirement_key=key,
                         description=f"需求未被覆盖: {req.name}",
+                        components=req.components,
                     )
                 )
         return issues
@@ -70,6 +72,7 @@ class Tracer:
                             testcase_id=tc.case_id,
                             requirement_key=key,
                             description=f"测试类型 {tc.test_type} 期望追溯 {expected_level}，实际为 {req.level}",
+                            components=req.components,
                         )
                     )
         return issues

@@ -29,6 +29,7 @@ def load_config(config_path: str) -> Dict:
     with path.open("r", encoding="utf-8") as f:
         cfg = yaml.safe_load(f) or {}
     cfg["_project_root"] = str(path.parent)
+    cfg["_config_name"] = path.stem
 
     test_mode = cfg.get("test_mode", {})
     if test_mode.get("enabled"):
@@ -75,30 +76,43 @@ def run(args: argparse.Namespace) -> Path:
     testcases = testcase_loader.load_all_testcases()
     logger.info("测试用例加载完成: %s", len(testcases))
 
-    tracer = Tracer(v_model_mapping=config.get("v_model_mapping", {}))
-    if args.coverage_only:
-        issues = []
-        logger.info("覆盖率模式：跳过问题检查")
-    else:
-        logger.info("开始执行追溯检查")
-        issues = tracer.run_full_check(testcases=testcases, requirements=requirements)
-        summary = tracer.issue_summary(issues)
-        logger.info("追溯检查完成: %s", summary)
-
     analyzer = CoverageAnalyzer(requirements=requirements, testcases=testcases)
-    coverage_rows = analyzer.calculate_requirement_coverage()
-    pass_rate_rows = analyzer.calculate_test_pass_rate()
+
+    # 根据 report_type 决定计算哪种统计
+    coverage_detail_rows = []
+    coverage_summary_rows = []
+    orphan_rows = []
+    pass_rate_rows = []
+    module_overview_rows = []
+
+    if args.report_type == "coverage":
+        logger.info("开始计算覆盖率")
+        coverage_detail_rows, coverage_summary_rows = analyzer.calculate_requirement_coverage()
+        orphan_rows = analyzer.calculate_orphan_traces()
+        module_overview_rows = analyzer.calculate_module_overview()
+        logger.info("覆盖率计算完成")
+    elif args.report_type == "pass-rate":
+        logger.info("开始计算通过率")
+        pass_rate_rows = analyzer.calculate_test_pass_rate()
+        logger.info("通过率计算完成")
 
     report_generator = ReportGenerator(
         output_cfg=config.get("output", {}),
         project_root=project_root,
         testcases=testcases,
         requirements=requirements,
-        issues=issues,
-        coverage_rows=coverage_rows,
+        issues=[],
+        coverage_detail_rows=coverage_detail_rows,
+        coverage_summary_rows=coverage_summary_rows,
+        orphan_rows=orphan_rows,
         pass_rate_rows=pass_rate_rows,
+        module_overview_rows=module_overview_rows,
     )
-    output_path = report_generator.generate_report(output_filename=args.output)
+
+    output_path = report_generator.generate_report(
+        output_filename=args.output,
+        report_type=args.report_type,
+    )
     logger.info("报告生成完成: %s", output_path)
     return output_path
 
@@ -108,7 +122,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--config", "-c", default="config.yaml", help="配置文件路径")
     parser.add_argument("--no-cache", action="store_true", help="禁用缓存并强制刷新")
     parser.add_argument("--project", "-p", help="按项目名过滤（模糊匹配）")
-    parser.add_argument("--coverage-only", action="store_true", help="只生成覆盖率/通过率统计")
+    parser.add_argument(
+        "--report-type",
+        "-r",
+        choices=["coverage", "pass-rate"],
+        required=True,
+        help="报告类型：coverage=覆盖率统计, pass-rate=通过率统计",
+    )
     parser.add_argument("--verbose", "-v", action="store_true", help="启用调试日志")
     parser.add_argument("--output", "-o", help="输出文件名（仅文件名，不含目录）")
     parser.add_argument("--log", help="日志文件路径")
