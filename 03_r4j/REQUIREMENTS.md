@@ -1,228 +1,177 @@
-# V 模型追溯检查工具 - 需求规格说明
+﻿# V 模型需求-测试追溯统计工具（当前实现版需求）
 
-## 1. 项目背景
+## 1. 文档目的
 
-基于 V 模型开发流程，需要验证测试用例与需求/设计项之间的追溯关系，确保：
-- 每个需求都有对应的测试用例覆盖
-- 每个测试用例都追溯到有效的需求
-- 测试类型与需求层级符合 V 模型映射规则
+这份文档用于把 `apple/03_r4j` 的现有实现能力完整交接给另一个 AI，目标是做出“功能基本一致”的工具。  
+本版本优先描述“当前代码真实行为”，不是初版设想。
 
-## 2. 数据源配置
+## 2. 工具目标与范围
 
-### 2.1 需求/设计数据（R4J）
+| 项目 | 说明 |
+|---|---|
+| 工具目标 | 从 Jira(R4J) 拉取需求、从 Confluence 附件读取测试用例，产出覆盖率/通过率统计报表 |
+| 入口脚本 | `v_model_tracer.py` |
+| 报告类型 | `coverage`、`pass-rate`（二选一） |
+| 当前定位 | 数据拉取 + 统计分析 + Excel 报告导出 |
 
-| 层级 | Project | Node ID | 说明 |
-|------|---------|---------|------|
-| 系统需求 | CPP | 139342 | 软件需求规范_V3.1 |
-| 架构设计 | CPD | 1106 | 软件架构设计 |
-| 详细设计 | CPD | 1105 | 软件详细设计 |
+## 3. 技术栈与依赖
 
-**关键点**：
-- 三个层级在不同的 Project 中，通过配置文件的 `level` 字段直接标注
-- 只提取 `type=Issue` 的条目（忽略 Folder）
-- 使用现有的 `main.py` 工具导出数据
+| 类别 | 内容 |
+|---|---|
+| 语言 | Python 3 |
+| 核心依赖 | `requests`, `python-dotenv`, `openpyxl`, `PyYAML` |
+| 依赖文件 | `requirements.txt` |
 
-### 2.2 测试用例数据（Confluence）
+## 4. 核心流程（必须复刻）
 
-| 测试类型 | Page ID | 说明 |
-|---------|---------|------|
-| 单元测试 | 98511442 | 单元测试报告和用例 |
-| 集成测试 | 106154999 | 集成测试用例 |
-| 软件测试 | 106154862 | 软件测试用例 |
+| 步骤 | 行为 |
+|---|---|
+| 1. 读取配置 | 从 `--config` 指定 YAML 读取配置，写入 `_project_root` 与 `_config_name` |
+| 2. 加载需求 | 按 `r4j_projects` 逐项拉取 R4J 树，保留有 `key` 的 Issue 项 |
+| 3. 拉取字段 | 对每个 Issue 再调用 Jira Issue API 补齐 `components/issuetype/labels/priority` |
+| 4. 加载用例 | 按 `confluence_testcases` 拉取页面（可选遍历子页）并下载 Excel 附件 |
+| 5. 解析用例 | 解析匹配 Sheet，识别 ID/名称/追溯列/结果列，提取需求 key 集合 |
+| 6. 统计分析 | 根据 `report-type` 计算覆盖率或通过率相关统计 |
+| 7. 导出报告 | 输出到 `tempFile/reports/YYYYMMDD/*.xlsx` |
 
-**关键点**：
-- 需要遍历每个页面的所有子页面
-- 下载所有 Excel 附件
-- Excel 列名统一：`用例ID`、`用例名称`、`对应需求编号`、`测试结果`
-- Sheet 名称包含"测试用例"的才是有效数据
+## 5. 输入与配置要求
 
-### 2.3 追溯标记格式
+### 5.1 环境变量
 
-- **格式**：Jira Issue Key（如 `CPD-76537`）
-- **分隔符**：支持逗号、空格、换行
-- **示例**：
-  - `CPD-76537`
-  - `CPD-76537, CPD-76538`
-  - `CPD-76537 CPD-76538`
-  - 多行换行
+| 变量名 | 用途 | 必需 |
+|---|---|---|
+| `JIRA_TOKEN` | Jira 鉴权 | 是 |
+| `JIRA_URL` | Jira 基础地址（默认 `https://jira.i-soft.com.cn`） | 否 |
+| `CONFLUENCE_URL` | Confluence 基础地址 | 是 |
+| `CONFLUENCE_USERNAME` | Confluence 用户名 | 是 |
+| `CONFLUENCE_API_TOKEN` | Confluence Token | 是 |
+| `CONFLUENCE_AUTH_MODE` | `bearer` 或 `basic`，默认 `bearer` | 否 |
 
-### 2.4 测试结果值
+说明：代码通过 `02_skills/token-manager/.env` 加载以上变量。
 
-| 状态 | 可能的值 |
-|------|---------|
-| 通过 | `通过`、`PASS`、`OK`、`Pass` |
-| 失败 | `失败`、`FAIL`、`NG`、`Fail` |
-| 未执行 | `未执行`、`N/A`、`-`、空值 |
+### 5.2 配置文件关键结构
 
-## 3. V 模型映射规则
+| 配置块 | 关键字段 | 说明 |
+|---|---|---|
+| `r4j_projects` | `name/node_id/project_id/level` | 定义需求来源与层级 |
+| `confluence_testcases` | `page_id/test_type/traverse_children` | 定义测试用例来源 |
+| `confluence_testcases.excel_columns` | `id/name/trace/result` | Excel 列映射 |
+| `confluence_testcases.sheet_pattern` | 正则字符串 | 筛选 Sheet |
+| `confluence_testcases.result_mapping` | `passed/failed/not_executed` | 结果映射 |
+| `cache` | `enabled/ttl_hours/dir/namespace` | 缓存策略 |
+| `api` | `delay_ms/timeout/retry_times` | 请求节流与重试 |
+| `logging` | `level/format` | 日志配置 |
 
-| 测试类型 | 对应层级 | 说明 |
-|---------|---------|------|
-| 单元测试 | 详细设计 | 验证函数、类、模块实现 |
-| 集成测试 | 架构设计 | 验证模块接口和子系统交互 |
-| 软件测试 | 系统需求 | 验证功能需求和验收标准 |
+## 6. 命令行接口（当前实现）
 
-## 4. 检查规则
+| 参数 | 必填 | 说明 |
+|---|---|---|
+| `--config`, `-c` | 否 | 配置文件路径，默认 `config.yaml` |
+| `--no-cache` | 否 | 禁用缓存 |
+| `--project`, `-p` | 否 | 按项目名子串过滤 `r4j_projects` |
+| `--report-type`, `-r` | 是 | `coverage` 或 `pass-rate` |
+| `--verbose`, `-v` | 否 | 强制日志级别为 DEBUG |
+| `--output`, `-o` | 否 | 输出文件名（仅文件名） |
+| `--log` | 否 | 日志文件名（写入 `tempFile/logs`） |
 
-### 4.1 孤儿追溯检查（高危）
-- **规则**：测试用例追溯的需求 Key 在需求数据中不存在
-- **严重性**：🔴 高
-- **示例**：用例 TC-001 追溯 CPD-99999，但该需求不存在
-
-### 4.2 覆盖率检查（中危）
-- **规则**：需求未被任何测试用例追溯
-- **严重性**：🟡 中
-- **示例**：需求 CPD-76537 没有任何测试用例覆盖
-
-### 4.3 层级一致性检查（低危）
-- **规则**：测试类型与需求层级不符合 V 模型映射
-- **严重性**：🟠 低
-- **示例**：单元测试追溯到系统需求（应追溯详细设计）
-
-## 5. 统计指标
-
-### 5.1 需求覆盖率
-```
-覆盖率 = 被追溯的需求数 / 总需求数
-```
-- 按项目分组统计
-- 按层级分组统计
-
-### 5.2 测试通过率
-```
-通过率 = 通过数 / (通过数 + 失败数)
-```
-- **注意**：未执行的用例不计入分母
-- 按测试类型分组统计
-
-## 6. 输出报告
-
-### 6.1 追溯矩阵（Sheet 1）
-| 用例ID | 用例名称 | 测试类型 | 追溯需求 | 测试结果 | 来源文件 | Confluence页面 |
-|--------|---------|---------|---------|---------|---------|---------------|
-
-**条件格式**：
-- 🔴 红色：孤儿追溯
-- 🟡 黄色：层级不匹配
-
-### 6.2 覆盖率统计（Sheet 2）
-| 项目 | 层级 | 总需求数 | 已覆盖数 | 未覆盖数 | 覆盖率 |
-|------|------|---------|---------|---------|--------|
-
-### 6.3 问题清单（Sheet 3）
-| 严重性 | 问题类型 | 用例ID | 需求Key | 问题描述 |
-|--------|---------|--------|---------|---------|
-
-### 6.4 通过率统计（Sheet 4）
-| 测试类型 | 总用例数 | 通过 | 失败 | 未执行 | 通过率 |
-|---------|---------|------|------|--------|--------|
-
-## 7. 技术实现要点
-
-### 7.1 Confluence API
-- **子页面遍历**：`/rest/api/content/{page_id}/child/page`
-- **附件列表**：`/rest/api/content/{page_id}/child/attachment`
-- **附件下载**：`/download/attachments/{page_id}/{filename}`
-- **认证方式**：HTTPBasicAuth(username, token)
-
-### 7.2 Excel 解析
-- 使用 `openpyxl` 库
-- 通过正则表达式匹配 Sheet 名称（`.*测试用例.*`）
-- 支持多种分隔符的追溯标记提取
-
-### 7.3 缓存机制
-- **需求数据**：基于 node_id + timestamp，TTL 24 小时
-- **测试用例**：基于 page_id + attachment_version
-- **强制刷新**：`--no-cache` 参数
-
-### 7.4 性能优化
-- 并发下载多个 Excel 文件（ThreadPoolExecutor）
-- 批量处理数据（一次性加载到内存）
-- 增量更新（检查缓存有效性）
-
-## 8. 配置文件结构
-
-```yaml
-r4j_projects:
-  - name: "CPP-系统需求"
-    node_id: 139342
-    project_id: 10001
-    level: "system_requirement"
-
-confluence_testcases:
-  - page_id: 98511442
-    test_type: "unit_test"
-    traverse_children: true
-    excel_columns:
-      id: "用例ID"
-      trace: "对应需求编号"
-      result: "测试结果"
-    sheet_pattern: ".*测试用例.*"
-    result_mapping:
-      passed: ["通过", "PASS", "OK"]
-      failed: ["失败", "FAIL", "NG"]
-      not_executed: ["未执行", "N/A", "-"]
-
-v_model_mapping:
-  unit_test: "detailed_design"
-  integration_test: "architecture_design"
-  software_test: "system_requirement"
-
-cache:
-  enabled: true
-  ttl_hours: 24
-  dir: "tempFile/cache"
-
-output:
-  dir: "tempFile/reports"
-  filename_template: "v_model_trace_report_{timestamp}.xlsx"
-```
-
-## 9. CLI 使用
+示例：
 
 ```bash
-# 基本用法
-python v_model_tracer.py
-
-# 强制刷新缓存
-python v_model_tracer.py --no-cache
-
-# 只检查特定项目
-python v_model_tracer.py --project "CPP-系统需求"
-
-# 只生成覆盖率报告
-python v_model_tracer.py --coverage-only
-
-# 详细日志
-python v_model_tracer.py --verbose --log trace.log
+python v_model_tracer.py --config config.yaml --report-type coverage
+python v_model_tracer.py --config config_software_test.yaml --report-type pass-rate --no-cache
 ```
 
-## 10. 实施计划
+## 7. 数据规则（必须一致）
 
-| 阶段 | 任务 | 预计时间 |
-|------|------|---------|
-| 阶段 1 | 基础设施（目录、依赖、配置） | 1 天 |
-| 阶段 2 | Confluence 客户端 + 需求加载器 | 2 天 |
-| 阶段 3 | 测试用例加载器 | 2 天 |
-| 阶段 4 | 追溯检查器 + 覆盖率分析器 | 2 天 |
-| 阶段 5 | 报告生成器 | 2 天 |
-| 阶段 6 | 主程序 + 集成测试 | 2 天 |
-| **总计** | | **11 天** |
+| 规则项 | 当前实现 |
+|---|---|
+| 追溯 key 提取 | 正则 `[A-Z]+-\\d+`，支持逗号/空格/换行等混合文本 |
+| key 归一化 | 转大写，`_` 转 `-`，兼容破折号噪音字符 |
+| 结果值映射 | 先按 `result_mapping` 精确匹配，再 fallback 到 `pass/passed/ok` 与 `fail/failed/ng` |
+| 未执行判定 | 空值或未命中映射时视为 `not_executed` |
+| 通过率分母 | `passed + failed`（不含 `not_executed`） |
 
-## 11. 验收标准
+## 8. 报表输出规范（当前实现）
 
-- [ ] 能够从 3 个 R4J Project 导出需求数据
-- [ ] 能够遍历 Confluence 子页面并下载所有 Excel 附件
-- [ ] 能够正确解析 Excel 并提取追溯标记
-- [ ] 能够检测孤儿追溯、覆盖率缺失、层级不匹配
-- [ ] 能够生成包含 4 个 sheet 的 Excel 报告
-- [ ] 覆盖率和通过率统计准确
-- [ ] 支持缓存机制和强制刷新
-- [ ] 支持命令行参数
-- [ ] 错误处理完善，日志清晰
+### 8.1 `coverage` 报告
+
+| Sheet 名称 | 内容 |
+|---|---|
+| `模块概览` | 每个模块未覆盖需求数量与 key 列表（基于 requirement 的 `components`） |
+| `覆盖率汇总` | 按 `project + level` 汇总覆盖率 |
+| `覆盖率明细` | 每条需求的模块/类型/标签/优先级/是否覆盖 |
+| `孤立追溯` | 用例追溯到不存在需求 key 的统计 |
+
+### 8.2 `pass-rate` 报告
+
+| Sheet 名称 | 内容 |
+|---|---|
+| `通过率统计` | 按模块统计 total/passed/failed/not_executed/pass_rate，含 `TOTAL` 汇总行 |
+
+## 9. 缓存与目录行为
+
+| 项目 | 当前实现 |
+|---|---|
+| 需求缓存 | `tempFile/cache/<namespace>/requirements/*.json` |
+| Jira 字段缓存 | `tempFile/cache/<namespace>/issue_fields_cache.json` |
+| 用例附件缓存 | `tempFile/cache/<namespace>/testcases/*`（文件名包含 `page_id + attachment_id + version`） |
+| 报告目录 | 固定 `tempFile/reports/YYYYMMDD/` |
+| 日志目录 | `tempFile/logs/` |
+
+## 10. 已实现与未实现边界（给复刻 AI 的重点）
+
+### 10.1 已实现
+
+| 能力 | 状态 |
+|---|---|
+| R4J 树拉取 + Issue 过滤 | 已实现 |
+| Confluence 页面/子页面附件拉取 | 已实现 |
+| Excel 多 Sheet 解析与表头识别 | 已实现 |
+| 覆盖率统计 | 已实现 |
+| 通过率统计 | 已实现 |
+| Excel 报表格式化输出 | 已实现 |
+| 缓存、重试、延迟控制 | 已实现 |
+
+### 10.2 当前代码里“有类/方法但未接入主流程”
+
+| 项目 | 说明 |
+|---|---|
+| `Tracer.run_full_check` | 主流程未调用，未输出“问题清单/层级一致性检查” |
+| `create_trace_matrix_sheet` / `create_issues_sheet` | `generate_report()` 当前不会创建这两类 sheet |
+
+### 10.3 与配置名义不完全一致的点（需保持或显式改进）
+
+| 项目 | 当前行为 |
+|---|---|
+| `output.dir` | 目前未生效，代码写死到 `tempFile/reports` |
+| `output.filename_template` | 目前未生效，文件名由 `report-type + level + timestamp` 生成 |
+
+## 11. 复刻验收标准（最低）
+
+| 验收项 | 判定标准 |
+|---|---|
+| CLI 对齐 | 支持第 6 节全部参数，`--report-type` 必填 |
+| 数据链路对齐 | Jira + Confluence + Excel 解析能跑通 |
+| 指标对齐 | 覆盖率与通过率计算口径一致 |
+| 报表结构对齐 | sheet 名称与字段结构与第 8 节一致 |
+| 缓存行为对齐 | 目录层级与 TTL 行为一致 |
+| 容错对齐 | API 重试、超时、日志行为可复现 |
+
+## 12. 建议给另一个 AI 的实现指令（可直接复制）
+
+```text
+请基于 Python 实现一个与以下规格“功能基本一致”的工具：
+1) 从 Jira R4J 拉需求树（只保留有 key 的 Issue），并补充 issue 字段 components/issuetype/labels/priority；
+2) 从 Confluence 指定页面（可递归子页面）下载 Excel 附件，按配置解析测试用例；
+3) 支持 report-type=coverage 或 pass-rate；
+4) 生成 Excel 报告：
+   - coverage: 模块概览/覆盖率汇总/覆盖率明细/孤立追溯
+   - pass-rate: 通过率统计（含 TOTAL）
+5) 支持缓存、TTL、API 重试、超时、请求延迟、日志输出；
+6) CLI 参数与本说明保持一致；
+7) 保持追溯 key 提取与结果映射规则一致。
+```
 
 ---
 
-**文档版本**：v1.0  
-**最后更新**：2026-05-12  
-**负责人**：zhiqiang.huang
+最后更新时间：2026-05-15
