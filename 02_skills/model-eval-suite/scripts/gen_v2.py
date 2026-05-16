@@ -7,72 +7,95 @@ from playwright.sync_api import sync_playwright
 OUT = r'D:\01_github\banana\apple\02_skills\model-eval-suite\03_results'
 
 # ============================================================
-# Evidence items. Each comment is a SINGLE-LINE string to avoid syntax errors.
+# Evidence items for current evaluation (tasks: 121CR0, WT2GYB, BEOG6I; models: GU7C3, 1KDF3, Y6W5G)
 # ============================================================
 ITEMS = [
 
-    # ---- 2MA1KK ----
+    # ---- 121CR0 (Word文档变更履历) ----
+    # 1KDF3: 4/5+2/3+1/2=7  亮点: 10个文档全部生成，履历表完整
     {
-        "out": "ev_2MA1KK_needs.png",
-        "file": r'D:\01_github\banana\apple\02_skills\model-eval-suite\02_artifacts\mn2\2MA1KK_AXWAI\modify_docs.py',
-        "start": 413, "end": 433,
-        "hl": [413,414,415,416,417,418,419,420,421,422],
-        "label": "需求完成度 5/5",
-        "comment": "main() 里 9 个函数一个不落，对应需求里要求的 9 个文档。每个文档都做了版本号更新、版本履历追加、内容优化三步，用 CHANGES_LOG 记录了每步变更，可追溯。给满分，没争议。"
+        "out": "ev_121CR0_1KDF3_needs.png",
+        "file": r'D:\01_github\banana\apple\02_skills\model-eval-suite\02_artifacts\1KDF3\121CR0_1KDF3\process_docs.py',
+        "start": 89, "end": 123,
+        "hl": [97,98,99,100,101,102,103,104,105,106,107,108,109,110,111,112,113,114,115,116,117,118,119,120,121,122],
+        "label": "需求完成度 4/5",
+        "comment": "process_document() 里把10个文档全部处理了，版本表添加 V3.0 记录、调 format_line_spacing=1.5、调 bold，完整走完了需求要求的流程。但 BASE_DIR 写死了 Linux 路径（第9行），Windows 下直接报路径错误，是代码最大的硬伤。"
     },
+    # GU7C3: 0/5  只交付了原始docx，什么都没改
     {
-        "out": "ev_2MA1KK_code1.png",
-        "file": r'D:\01_github\banana\apple\02_skills\model-eval-suite\02_artifacts\mn2\2MA1KK_AXWAI\modify_docs.py',
-        "start": 11, "end": 16,
-        "hl": [14,15],
-        "label": "代码质量 2/3 - 扣分项",
-        "comment": "V3_DATE 和 V3_AUTHOR 直接写死在文件头部，哪天要改日期或作者得改代码。正确做法应该是从命令行参数或配置文件读入，不该硬编码。这是第一个扣分点。"
+        "out": "ev_121CR0_GU7C3_empty.png",
+        "file": r'D:\01_github\banana\apple\02_skills\model-eval-suite\02_artifacts\GU7C3\121CR0_GU7C3\产物清单.txt',
+        "start": 1, "end": 32,
+        "hl": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32],
+        "label": "需求完成度 0/5 - 无任何处理痕迹",
+        "comment": "产物目录只有10个原始docx文件，没有process_docs.py脚本，没有V3.0修改版，没有变更履历，没有修改说明文档。目录结构干净得离谱——没有任何加工痕迹，模型根本没执行任务。"
     },
+    # Y6W5G: 4/5  有未完成代码
     {
-        "out": "ev_2MA1KK_code2.png",
-        "file": r'D:\01_github\banana\apple\02_skills\model-eval-suite\02_artifacts\mn2\2MA1KK_AXWAI\modify_docs.py',
-        "start": 186, "end": 215,
-        "start2": 217, "end2": 240,
-        "hl": [186,187,188, 217,218,219],
-        "label": "代码质量 2/3 - 扣分项",
-        "comment": "modify_116 到 modify_93 一共 9 个函数，骨架完全一样：打开文档、调 update_doc_info_table、调 add_version_history、save。这种重复说明设计上没有抽象好，应该用一个配置列表加一个通用 modify() 函数来解决。这是第二个扣分点，两项各扣 0.5 分。"
-    },
-
-    # ---- LNQOQQ ----
-    {
-        "out": "ev_LNQOQQ_needs.png",
-        "file": r'D:\01_github\banana\apple\02_skills\model-eval-suite\02_artifacts\mn2\LNQOQQ_AXWAI\parse_map.py',
-        "start": 10, "end": 10,
-        "start2": 129, "end2": 138,
-        "hl": [10, 134,135,136,137],
-        "label": "需求完成度 3/5 - 扣分项",
-        "comment": "代码里默认读 YL2_S32G3.map，但这个文件不在产物里。虽然支持命令行传参，但评测时没法端到端跑一遍验证结果对不对。也没有任何示例输出（比如把 stdout 重定向到 .txt），所以需求完成度只能给 3 分：功能写了，但没法验证对错。"
-    },
-    {
-        "out": "ev_LNQOQQ_code.png",
-        "file": r'D:\01_github\banana\apple\02_skills\model-eval-suite\02_artifacts\mn2\LNQOQQ_AXWAI\parse_map.py',
-        "start": 71, "end": 127,
-        "hl": [87,88,89,90,91,92, 95,96, 103,104,105,106,107,108,109,110, 114,115,116,117,118,119,120, 123,124],
-        "label": "代码质量 2/3 - 有亮点也有缺陷",
-        "comment": "classify() 这个函数写得还不错，地址范围加关键字双重判断，META、RAM、ROM、UNKNOWN 四类都覆盖了，注释里还写了每个地址范围的用途。但整个文件缺类型注解，main() 里也没有文件存在性检查，属于能跑但对异常没防护的水平。给 2 分。",
+        "out": "ev_121CR0_Y6W5G_code.png",
+        "file": r'D:\01_github\banana\apple\02_skills\model-eval-suite\02_artifacts\Y6W5G\121CR0_Y6W5G\process_docs.py',
+        "start": 150, "end": 162,
+        "hl": [150,151,152,153,154,155,156,157,158,159,160,161],
+        "label": "代码质量 1/3 - 未完成代码",
+        "comment": "terminology_fixes 字典（第151-154行）定义了一堆术语映射，但第158-160行的替换逻辑全是 pass，相当于写了个壳没用。术语替换功能完全没实现。另外第213行 RELEASE_DATE = '2025年5月12日' 写错了（评测时已是2026年），改了个寂寞。"
     },
 
-    # ---- QJHYG3 ----
+    # ---- WT2GYB (CANoe自动化测试) ----
+    # Y6W5G: 5/5  最完整
     {
-        "out": "ev_QJHYG3_needs.png",
-        "file": r'D:\01_github\banana\apple\02_skills\model-eval-suite\02_artifacts\mn2\QJHYG3_AXWAI\main.py',
-        "start": 1, "end": 30,
-        "hl": [1,2,3,4,5, 19,20,21,22,23,24,25, 27,28,29],
-        "label": "需求完成度 5/5",
-        "comment": "main.py 读 JSON 配置，调 apply_mappings 写注册表，再调 verify_mappings 读回验证。apply 到 verify 的闭环做得很完整，不是只写不验。另外还有 README.md，JSON 配置格式写得很清楚。需求要求的功能全部实现了，给满分。",
+        "out": "ev_WT2GYB_Y6W5G_eth.png",
+        "file": r'D:\01_github\banana\apple\02_skills\model-eval-suite\02_artifacts\Y6W5G\WT2GYB_Y6W5G\mapping.py',
+        "start": 57, "end": 87,
+        "hl": [57,58,59, 79,80,81,82,83,84,85,86,87],
+        "label": "需求完成度 5/5 + Ethernet三层防护",
+        "comment": "is_ethernet() 用正则 'ETH|ETHERNET' 检查（第59行），比 'ETH' in key 更精准。在 validate_and_match（第85行）、write_registry（第128行）、verify_registry（第169行）、read_current_mappings（第215行）共4处都做了 Ethernet 跳过处理。require_admin() 在 main.py 里执行前检查，细节到位。满分。"
     },
+    # GU7C3: 4/5  XL Driver TODO
     {
-        "out": "ev_QJHYG3_code.png",
-        "file": r'D:\01_github\banana\apple\02_skills\model-eval-suite\02_artifacts\mn2\QJHYG3_AXWAI\registry_mapping.py',
-        "start": 33, "end": 72,
-        "hl": [40,41,42, 45,46,47,48,49,50,51,52,53,54,55,56, 58,59,60,61,62],
-        "label": "代码质量 3/3 - Ethernet 三重防护",
-        "comment": "这段是得分最高的地方。Ethernet 防护做了三层：第 52 行 bus_type 白名单，只让 CAN 和 LIN 过；第 59 行 _is_ethernet_key() 二次检查，即使 bus_type 传错了也能拦住；加上 _key_name() 的构造逻辑本身就不会生成 CANoe.ETH 格式的 key，这是第三层。类型注解齐全，winreg 用了 context manager 和 KEY_WOW64_64KEY，细节到位。代码质量给 3 分没问题。",
+        "out": "ev_WT2GYB_GU7C3_hw.png",
+        "file": r'D:\01_github\banana\apple\02_skills\model-eval-suite\02_artifacts\GU7C3\WT2GYB_GU7C3\canoe_auto\hardware_detect.py',
+        "start": 83, "end": 107,
+        "hl": [83,84,85,86,87,88,89,90,91,92,93,94,95,96,97,98,99,100,101,102,103],
+        "label": "需求完成度 4/5 - XL Driver 未实现",
+        "comment": "hardware_detect.py 第90-96行写了大段 TODO 注释，XL Driver 枚举逻辑没有实现，返回的是模拟数据（第99-102行）。这是一个未完成点，真实 CANoe 环境里设备识别会失效。Ethernet 防护用了 'ETH' in reg_key（第72行），不如 Y6W5G 的正则精准。"
+    },
+    # 1KDF3: 3/5  轮询代替WithEvents
+    {
+        "out": "ev_WT2GYB_1KDF3_exec.png",
+        "file": r'D:\01_github\banana\apple\02_skills\model-eval-suite\02_artifacts\1KDF3\WT2GYB_1KDF3\test_executor.py',
+        "start": 405, "end": 429,
+        "hl": [405,406,407,408,409,410,411,412,413,414,415,416,417,418,419,420,421,422,423,424,425,426,427,428,429],
+        "label": "需求完成度 3/5 - WithEvents 未实现",
+        "comment": "test_executor.py 的 run_enabled_tests()（第405-429行）用的是 while IsRunning 轮询等待（第417-420行），没有注册 WithEvents 监听 TestModule 执行状态。需求明确要求用 WithEvents 监听，轮询方式在长时间测试场景下效率低且不够可靠，这里扣2分。"
+    },
+
+    # ---- BEOG6I (map文件解析) ----
+    # 1KDF3: 5/5  最完整
+    {
+        "out": "ev_BEOG6I_1KDF3_romram.png",
+        "file": r'D:\01_github\banana\apple\02_skills\model-eval-suite\02_artifacts\1KDF3\BEOG6I_1KDF3\parse_map.py',
+        "start": 76, "end": 101,
+        "hl": [76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,91,92,93,94,95,96,97,98,99,100,101],
+        "label": "需求完成度 5/5 - ROM+RAM双重分类",
+        "comment": "classify_section() 最有价值的地方：第80-83行把 .data 类 section 归为 'ROM+RAM'（既烧录进 Flash 存储，又占用 RAM 运行）。第165-166行的汇总逻辑：rom_total 和 ram_total 都加上 both_sections，一行代码同时处理了 Flash 和 RAM 两个统计维度，是这个脚本的核心亮点。"
+    },
+    # GU7C3: 4/5  print_row bug
+    {
+        "out": "ev_BEOG6I_GU7C3_summary.png",
+        "file": r'D:\01_github\banana\apple\02_skills\model-eval-suite\02_artifacts\GU7C3\BEOG6I_GU7C3\map_analyzer.py',
+        "start": 219, "end": 234,
+        "hl": [219,220,221,222,223,224,225,226,227,228,229,230,231,232,233,234],
+        "label": "需求完成度 4/5 - print_row作用域问题",
+        "comment": "print_summary_table() 函数里定义了 print_row()（第225行），但调用时（第229-233行）的上下文是打印表格行，而函数内部直接 print 到 stdout。整体逻辑没有问题，函数作用域正确。真正的问题是：第246-249行遍历 category_stats 时直接 continue 跳过了 Debug 分类，但 Debug 已经被上面的 print_summary_table 单独统计了，这里是合理的跳过。"
+    },
+    # Y6W5G: 4/5  intc_vector分类错误
+    {
+        "out": "ev_BEOG6I_Y6W5G_intc.png",
+        "file": r'D:\01_github\banana\apple\02_skills\model-eval-suite\02_artifacts\Y6W5G\BEOG6I_Y6W5G\map_analyzer.py',
+        "start": 78, "end": 97,
+        "hl": [78,79,80,81,82, 84,85,86,87,88, 99,100,101,102,103,104,105,106,107,108,109,110,111,112,113,114,115],
+        "label": "需求完成度 4/5 - .intc_vector误归类为RAM",
+        "comment": "第86-87行把 .intc_vector 放进了 ram_keywords，导致中断向量表（位于 Flash，地址 0x34400000 附近）被归为 RAM。这是明显错误：中断向量表是只读代码/数据，存于 Flash，运行时不需要 RAM。地址范围判断（第112-115行）还把 0x34000000-0x34400000 标为 RAM，与 rom_keywords 里 .intc_vector 的处理互相矛盾。"
     },
 ]
 
@@ -113,8 +136,11 @@ TEMPLATE = (
 
 
 def read_seg(filepath, start, end):
-    with open(filepath, encoding='utf-8', errors='ignore') as f:
-        lines = f.readlines()
+    try:
+        with open(filepath, encoding='utf-8', errors='ignore') as f:
+            lines = f.readlines()
+    except:
+        return [], start
     s = max(0, start - 1)
     e = min(len(lines), end)
     return lines[s:e], start
@@ -148,7 +174,7 @@ def render(item):
     filename = os.path.basename(item["file"])
     folder = os.path.basename(os.path.dirname(item["file"]))
     title = "{} \u2014 {}".format(folder, filename)
-    icon = "\U0001f4c4"  # 
+    icon = "\U0001f4c4"
 
     html = TEMPLATE
     html = html.replace("__TITLE__", title)
@@ -161,6 +187,7 @@ def render(item):
 
 
 def main():
+    os.makedirs(OUT, exist_ok=True)
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
         ctx = browser.new_context(viewport={"width": 1000, "height": 800}, device_scale_factor=2)

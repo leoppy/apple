@@ -139,7 +139,7 @@ mkdir -p 02_skills/model-eval-suite/{01_req,02_artifacts,03_results}
 
 ## 5. 截图生成与报告打包
 
-每次评测必须生成佐证截图并嵌入 HTML 报告，截图是评分可追溯的核心证据。
+每次评测必须生成佐证截图，截图是评分可追溯的核心证据。
 
 ### 5.1 截图生成
 
@@ -151,7 +151,7 @@ python scripts/gen_v2.py
 ```
 
 - 脚本读取 `02_artifacts/<model>/<taskID>_<model>/` 下的产物代码，按 `ITEMS` 列表截取关键行
-- 输出到 `03_results/ev_*.png`
+- 输出到 `03_results/ev_*.png`（张数 = 模型数 × 每模型关键截图数）
 - 每张截图包含：VS Code 风格窗口、代码关键行黄色高亮、底部评语标签
 - **截图中的评语必须像人写的**，不用 AI 套话
 
@@ -169,16 +169,16 @@ Get-ChildItem "03_results\ev_*.png" | Select-Object Name, Length
 
 ### 5.3 报告打包
 
-使用 `scripts/build_final_report.py` 将截图 base64 嵌入 HTML（从 `model-eval-suite/` 目录执行）：
+使用 `scripts/build_final_report.py` 生成轻量汇总 HTML（从 `model-eval-suite/` 目录执行）：
 
 ```powershell
 cd model-eval-suite
 python scripts/build_final_report.py
 ```
 
-- 输出 `03_results/eval_report_<model>.html`
-- 截图以 `data:image/png;base64,...` 内嵌，file:// 协议下可正常显示
-- 报告大小通常 2~3MB
+- 输出 `03_results/eval_report_<date>.html`（约12KB）
+- **截图不嵌入 HTML**，以独立 PNG 文件形式存在
+- 截图引用方式：`ev_*.png` 文件在同一目录，HTML 内用相对路径引用
 - **报告标题、页脚不得出现"AI""WorkBuddy"等字样**
 
 ### 5.4 评语规范
@@ -207,8 +207,8 @@ python scripts/build_final_report.py
 
 评测完成后，只保留：
 
-- `ev_*.png`（佐证截图，报告嵌入源文件）
-- `eval_report_*.html`（评测报告）
+- `ev_*.png`（佐证截图，报告内引用，按实际生成数量计）
+- `eval_report_*.html`（评测报告，约12KB）
 - `doc_check.txt`（文档核查结果）
 
 删除其他过程截图（`artifact_*.png`、`trace_*.png`、`evidence_*.png` 等）。
