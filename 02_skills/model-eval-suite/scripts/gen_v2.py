@@ -7,95 +7,135 @@ from playwright.sync_api import sync_playwright
 OUT = r'D:\01_github\banana\apple\02_skills\model-eval-suite\03_results'
 
 # ============================================================
-# Evidence items for current evaluation (tasks: 121CR0, WT2GYB, BEOG6I; models: GU7C3, 1KDF3, Y6W5G)
+# Evidence items for current evaluation
+# Tasks: JWNK6P, TRW23D, GO7Q83
+# Models: DQX6D(queen), I2QS4(bishop), KVAZ2(rook), 9CNZI(knight)
+# ============================================================
+# 填写指南：
+#   "out"     → 输出文件名，格式: ev_<任务ID>_<模型ID>_<标签>.png
+#   "file"    → 产物中要截取的 .py 文件绝对路径
+#   "start"   → 截取起始行（含）
+#   "end"     → 截取结束行（含）
+#   "hl"      → 黄色高亮行号列表
+#   "label"   → 截图底部标签（如 "需求完成度 4/5"）
+#   "comment" → 底部评语，口语化，指向具体行号，不用AI套话
 # ============================================================
 ITEMS = [
 
-    # ---- 121CR0 (Word文档变更履历) ----
-    # 1KDF3: 4/5+2/3+1/2=7  亮点: 10个文档全部生成，履历表完整
+    # ---- JWNK6P ----
+    # queen / DQX6D
     {
-        "out": "ev_121CR0_1KDF3_needs.png",
-        "file": r'D:\01_github\banana\apple\02_skills\model-eval-suite\02_artifacts\1KDF3\121CR0_1KDF3\process_docs.py',
-        "start": 89, "end": 123,
-        "hl": [97,98,99,100,101,102,103,104,105,106,107,108,109,110,111,112,113,114,115,116,117,118,119,120,121,122],
+        "out": "ev_JWNK6P_DQX6D_req.png",
+        "file": r'D:\01_github\banana\apple\02_skills\model-eval-suite\02_artifacts\DQX6D\JWNK6P_DQX6D\v_model_tracer.py',
+        "start": 39, "end": 95,
+        "hl": [44, 46, 47, 83, 84, 85, 86, 87, 88],
         "label": "需求完成度 4/5",
-        "comment": "process_document() 里把10个文档全部处理了，版本表添加 V3.0 记录、调 format_line_spacing=1.5、调 bold，完整走完了需求要求的流程。但 BASE_DIR 写死了 Linux 路径（第9行），Windows 下直接报路径错误，是代码最大的硬伤。"
+        "comment": "CLI 参数与需求文档基本对齐（第44行 --report-type required，第46-47行 --verbose/-v），主流程拆分到独立模块，覆盖率/通过率报告分支清晰（第83-88行）。缺少 .env 加载路径 02_skills/token-manager，且日志文件未按需求写到 tempFile/logs 的相对路径，扣1分。"
     },
-    # GU7C3: 0/5  只交付了原始docx，什么都没改
+    # bishop / I2QS4
     {
-        "out": "ev_121CR0_GU7C3_empty.png",
-        "file": r'D:\01_github\banana\apple\02_skills\model-eval-suite\02_artifacts\GU7C3\121CR0_GU7C3\产物清单.txt',
-        "start": 1, "end": 32,
-        "hl": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32],
-        "label": "需求完成度 0/5 - 无任何处理痕迹",
-        "comment": "产物目录只有10个原始docx文件，没有process_docs.py脚本，没有V3.0修改版，没有变更履历，没有修改说明文档。目录结构干净得离谱——没有任何加工痕迹，模型根本没执行任务。"
+        "out": "ev_JWNK6P_I2QS4_req.png",
+        "file": r'D:\01_github\banana\apple\02_skills\model-eval-suite\02_artifacts\I2QS4\JWNK6P_I2QS4\v_model_tracer.py',
+        "start": 42, "end": 117,
+        "hl": [44, 46, 47, 49, 50, 71, 72, 73, 74, 75, 76, 96, 97, 98],
+        "label": "需求完成度 4/5",
+        "comment": "CLI 对齐完整，--no-cache、--project、--output、--log 均实现（第44-50行）。报告输出路径按 tempFile/reports/YYYYMMDD 拼接（第96-98行），缓存manager独立实例化（第71-76行）。.env 加载未指定 token-manager 路径，稍有偏差，扣1分。"
     },
-    # Y6W5G: 4/5  有未完成代码
+    # rook / KVAZ2
     {
-        "out": "ev_121CR0_Y6W5G_code.png",
-        "file": r'D:\01_github\banana\apple\02_skills\model-eval-suite\02_artifacts\Y6W5G\121CR0_Y6W5G\process_docs.py',
-        "start": 150, "end": 162,
-        "hl": [150,151,152,153,154,155,156,157,158,159,160,161],
-        "label": "代码质量 1/3 - 未完成代码",
-        "comment": "terminology_fixes 字典（第151-154行）定义了一堆术语映射，但第158-160行的替换逻辑全是 pass，相当于写了个壳没用。术语替换功能完全没实现。另外第213行 RELEASE_DATE = '2025年5月12日' 写错了（评测时已是2026年），改了个寂寞。"
+        "out": "ev_JWNK6P_KVAZ2_req.png",
+        "file": r'D:\01_github\banana\apple\02_skills\model-eval-suite\02_artifacts\KVAZ2\JWNK6P_KVAZ2\v_model_tracer.py',
+        "start": 38, "end": 99,
+        "hl": [41, 42, 56, 57, 58, 59, 60, 104, 105, 106, 107, 108, 109],
+        "label": "需求完成度 5/5",
+        "comment": "CLI 参数完全对齐，parse_args 独立函数（第38-77行），--no-cache、--project、--report-type、--output、--log 全部覆盖（第41-76行）。apply_cli_overrides 机制干净，get_env_vars 统一读取环境变量，r4j_projects/confluence_testcases 流程分明，输出路径 tempFile/reports/YYYYMMDD 符合规范，满分。"
     },
-
-    # ---- WT2GYB (CANoe自动化测试) ----
-    # Y6W5G: 5/5  最完整
+    # knight / 9CNZI
     {
-        "out": "ev_WT2GYB_Y6W5G_eth.png",
-        "file": r'D:\01_github\banana\apple\02_skills\model-eval-suite\02_artifacts\Y6W5G\WT2GYB_Y6W5G\mapping.py',
-        "start": 57, "end": 87,
-        "hl": [57,58,59, 79,80,81,82,83,84,85,86,87],
-        "label": "需求完成度 5/5 + Ethernet三层防护",
-        "comment": "is_ethernet() 用正则 'ETH|ETHERNET' 检查（第59行），比 'ETH' in key 更精准。在 validate_and_match（第85行）、write_registry（第128行）、verify_registry（第169行）、read_current_mappings（第215行）共4处都做了 Ethernet 跳过处理。require_admin() 在 main.py 里执行前检查，细节到位。满分。"
-    },
-    # GU7C3: 4/5  XL Driver TODO
-    {
-        "out": "ev_WT2GYB_GU7C3_hw.png",
-        "file": r'D:\01_github\banana\apple\02_skills\model-eval-suite\02_artifacts\GU7C3\WT2GYB_GU7C3\canoe_auto\hardware_detect.py',
-        "start": 83, "end": 107,
-        "hl": [83,84,85,86,87,88,89,90,91,92,93,94,95,96,97,98,99,100,101,102,103],
-        "label": "需求完成度 4/5 - XL Driver 未实现",
-        "comment": "hardware_detect.py 第90-96行写了大段 TODO 注释，XL Driver 枚举逻辑没有实现，返回的是模拟数据（第99-102行）。这是一个未完成点，真实 CANoe 环境里设备识别会失效。Ethernet 防护用了 'ETH' in reg_key（第72行），不如 Y6W5G 的正则精准。"
-    },
-    # 1KDF3: 3/5  轮询代替WithEvents
-    {
-        "out": "ev_WT2GYB_1KDF3_exec.png",
-        "file": r'D:\01_github\banana\apple\02_skills\model-eval-suite\02_artifacts\1KDF3\WT2GYB_1KDF3\test_executor.py',
-        "start": 405, "end": 429,
-        "hl": [405,406,407,408,409,410,411,412,413,414,415,416,417,418,419,420,421,422,423,424,425,426,427,428,429],
-        "label": "需求完成度 3/5 - WithEvents 未实现",
-        "comment": "test_executor.py 的 run_enabled_tests()（第405-429行）用的是 while IsRunning 轮询等待（第417-420行），没有注册 WithEvents 监听 TestModule 执行状态。需求明确要求用 WithEvents 监听，轮询方式在长时间测试场景下效率低且不够可靠，这里扣2分。"
+        "out": "ev_JWNK6P_9CNZI_req.png",
+        "file": r'D:\01_github\banana\apple\02_skills\model-eval-suite\02_artifacts\9CNZI\JWNK6P_9CNZI\v_model_tracer.py',
+        "start": 70, "end": 82,
+        "start2": 1038, "end2": 1065,
+        "hl": [71, 72, 73, 74, 1043, 1044, 1045, 1046, 1047, 1048, 1049, 1050, 1051, 1052, 1053, 1054, 1055, 1056, 1057, 1058, 1059, 1060],
+        "label": "需求完成度 5/5",
+        "comment": "单文件完整实现，.env 加载路径精确指向 02_skills/token-manager（第73行），CLI 参数全覆盖（第1043-1060行），load_env() 函数优先读相对路径再 fallback 本地，与需求说明的 token-manager 集成一致，满分。"
     },
 
-    # ---- BEOG6I (map文件解析) ----
-    # 1KDF3: 5/5  最完整
+    # ---- TRW23D ----
+    # queen / DQX6D
     {
-        "out": "ev_BEOG6I_1KDF3_romram.png",
-        "file": r'D:\01_github\banana\apple\02_skills\model-eval-suite\02_artifacts\1KDF3\BEOG6I_1KDF3\parse_map.py',
-        "start": 76, "end": 101,
-        "hl": [76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,91,92,93,94,95,96,97,98,99,100,101],
-        "label": "需求完成度 5/5 - ROM+RAM双重分类",
-        "comment": "classify_section() 最有价值的地方：第80-83行把 .data 类 section 归为 'ROM+RAM'（既烧录进 Flash 存储，又占用 RAM 运行）。第165-166行的汇总逻辑：rom_total 和 ram_total 都加上 both_sections，一行代码同时处理了 Flash 和 RAM 两个统计维度，是这个脚本的核心亮点。"
+        "out": "ev_TRW23D_DQX6D_req.png",
+        "file": r'D:\01_github\banana\apple\02_skills\model-eval-suite\02_artifacts\DQX6D\TRW23D_DQX6D\git_config.py',
+        "start": 29, "end": 55,
+        "hl": [40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 52, 53, 54],
+        "label": "需求完成度 4/5",
+        "comment": "主菜单选项1-8完整，别名列表与需求完全一致（第40-49行），全局选项submodule.recurse=true（第52-54行），dry-run/SSH生成/GitHub上传逻辑均实现。用户名空值保护和API网络异常处理均有。SSH查重逻辑用key字符串比较（非指纹），有误判风险，扣1分。"
     },
-    # GU7C3: 4/5  print_row bug
+    # bishop / I2QS4
     {
-        "out": "ev_BEOG6I_GU7C3_summary.png",
-        "file": r'D:\01_github\banana\apple\02_skills\model-eval-suite\02_artifacts\GU7C3\BEOG6I_GU7C3\map_analyzer.py',
-        "start": 219, "end": 234,
-        "hl": [219,220,221,222,223,224,225,226,227,228,229,230,231,232,233,234],
-        "label": "需求完成度 4/5 - print_row作用域问题",
-        "comment": "print_summary_table() 函数里定义了 print_row()（第225行），但调用时（第229-233行）的上下文是打印表格行，而函数内部直接 print 到 stdout。整体逻辑没有问题，函数作用域正确。真正的问题是：第246-249行遍历 category_stats 时直接 continue 跳过了 Debug 分类，但 Debug 已经被上面的 print_summary_table 单独统计了，这里是合理的跳过。"
+        "out": "ev_TRW23D_I2QS4_req.png",
+        "file": r'D:\01_github\banana\apple\02_skills\model-eval-suite\02_artifacts\I2QS4\TRW23D_I2QS4\git_config.py',
+        "start": 12, "end": 24,
+        "start2": 456, "end2": 527,
+        "hl": [12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 459, 460, 461, 462, 463, 464, 465, 466, 467, 468],
+        "label": "需求完成度 4/5",
+        "comment": "GIT_ALIASES 字典定义6条别名全部正确（第12-18行），GIT_CONFIG_OPTIONS 可扩展结构符合需求（第20-22行）。主菜单8项完整，check_git_installed 在 dry_run 时调用 run_command 会直接执行 git --version（非干跑），逻辑有小问题。键盘中断捕获和用户名空值保护完整（第521行），扣1分。"
     },
-    # Y6W5G: 4/5  intc_vector分类错误
+    # rook / KVAZ2
     {
-        "out": "ev_BEOG6I_Y6W5G_intc.png",
-        "file": r'D:\01_github\banana\apple\02_skills\model-eval-suite\02_artifacts\Y6W5G\BEOG6I_Y6W5G\map_analyzer.py',
-        "start": 78, "end": 97,
-        "hl": [78,79,80,81,82, 84,85,86,87,88, 99,100,101,102,103,104,105,106,107,108,109,110,111,112,113,114,115],
-        "label": "需求完成度 4/5 - .intc_vector误归类为RAM",
-        "comment": "第86-87行把 .intc_vector 放进了 ram_keywords，导致中断向量表（位于 Flash，地址 0x34400000 附近）被归为 RAM。这是明显错误：中断向量表是只读代码/数据，存于 Flash，运行时不需要 RAM。地址范围判断（第112-115行）还把 0x34000000-0x34400000 标为 RAM，与 rom_keywords 里 .intc_vector 的处理互相矛盾。"
+        "out": "ev_TRW23D_KVAZ2_req.png",
+        "file": r'D:\01_github\banana\apple\02_skills\model-eval-suite\02_artifacts\KVAZ2\TRW23D_KVAZ2\git_config.py',
+        "start": 99, "end": 130,
+        "hl": [100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 113, 114, 115],
+        "label": "需求完成度 5/5",
+        "comment": "ALIASES/GLOBAL_OPTIONS 定义为类属性（第103-115行），符合需求的「可扩展」要求。_exec_git_config 封装漂亮，dry-run 下打印命令不执行（第133-135行），_api_request 通用层简化上传代码，指纹级查重防误判，main 入口 KeyboardInterrupt 捕获，满分。"
+    },
+    # knight / 9CNZI
+    {
+        "out": "ev_TRW23D_9CNZI_req.png",
+        "file": r'D:\01_github\banana\apple\02_skills\model-eval-suite\02_artifacts\9CNZI\TRW23D_9CNZI\git_config.py',
+        "start": 30, "end": 56,
+        "hl": [40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 51, 52, 53, 54],
+        "label": "需求完成度 4/5",
+        "comment": "别名列表6条全部正确（第40-49行），全局选项使用列表格式（第51-54行）符合扩展要求。干跑模式、SSH生成、用户名邮箱空值保护均完整。交互流程在选项执行后询问「是否继续」符合规范（第510-511行）。GitLab上传缺少422已存在的错误处理分支，扣1分。"
+    },
+
+    # ---- GO7Q83 ----
+    # queen / DQX6D
+    {
+        "out": "ev_GO7Q83_DQX6D_req.png",
+        "file": r'D:\01_github\banana\apple\02_skills\model-eval-suite\02_artifacts\DQX6D\GO7Q83_DQX6D\parse_map.py',
+        "start": 1, "end": 52,
+        "hl": [31, 32, 33, 34, 36, 37, 38, 39, 42, 43, 44, 45, 46, 49, 50, 51, 52],
+        "label": "需求完成度 3/5",
+        "comment": "实现了RAM/ROM分类和汇总表格输出，基本满足「汇总RAM和ROM总量」需求。但分类规则粗糙，else分支将PFE、LLCE等全归ROM（第43-46行），未区分调试段和实际ROM，.data段未按双重记录处理，分类准确性明显不足。"
+    },
+    # bishop / I2QS4
+    {
+        "out": "ev_GO7Q83_I2QS4_req.png",
+        "file": r'D:\01_github\banana\apple\02_skills\model-eval-suite\02_artifacts\I2QS4\GO7Q83_I2QS4\map_analyzer.py',
+        "start": 13, "end": 68,
+        "hl": [22, 23, 24, 25, 28, 29, 48, 49, 50, 51, 52, 53, 54, 63, 64, 65, 66, 67, 68],
+        "label": "需求完成度 4/5",
+        "comment": "SectionInfo 面向对象设计，_classify 方法支持 DEBUG/ROM/RAM/BOTH 四分类（第22-67行），.data 段双重记录（第48-51行）是正确的嵌入式理解。get_rom_size/get_ram_size 方法封装好（第69-83行），汇总表格清晰。输出稍显繁琐，行命令参数读取方式稍显简单，扣1分。"
+    },
+    # rook / KVAZ2
+    {
+        "out": "ev_GO7Q83_KVAZ2_req.png",
+        "file": r'D:\01_github\banana\apple\02_skills\model-eval-suite\02_artifacts\KVAZ2\GO7Q83_KVAZ2\parse_map.py',
+        "start": 44, "end": 111,
+        "hl": [44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105],
+        "label": "需求完成度 5/5",
+        "comment": "ROM/RAM Pattern 用正则数组定义（第44-105行），S32G3 内存区域注释完整，5张输出表（段详情/ROM分析/RAM分析/内存区域汇总/Top30模块），RAM子分类分析功能超出需求范围，属于加分项。分类准确，满分。"
+    },
+    # knight / 9CNZI
+    {
+        "out": "ev_GO7Q83_9CNZI_req.png",
+        "file": r'D:\01_github\banana\apple\02_skills\model-eval-suite\02_artifacts\9CNZI\GO7Q83_9CNZI\parse_map.py',
+        "start": 80, "end": 125,
+        "hl": [81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123],
+        "label": "需求完成度 5/5",
+        "comment": "classify_memory 函数逻辑清晰，BOTH/ROM/RAM/DEBUG/SKIP 五分类精确，.data 双重计入（第108-109行），SecOffs 作为最终 fallback（第212-217行）是正确的 GHS linker 理解。parse_image_summary 专门解析 Image Summary 节（第151行），最终汇总表格用方框字符输出，清晰专业，满分。"
     },
 ]
 
