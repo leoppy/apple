@@ -1,3 +1,9 @@
+temp/
+temp_extract/
+temp_extract_all/
+__pycache__/
+*.pyc
+temp
 01_req
 02_artifacts
 03_results
