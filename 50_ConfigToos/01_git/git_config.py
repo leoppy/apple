@@ -34,6 +34,19 @@ class GitConfigTool:
             "force-reset": "!git reset --hard && git clean -fd",
             "sync": "!git fetch origin && git reset --hard origin/master",
             "f-push": "!f(){ git fetch --all && git rebase && git push; }; f",
+            "fast-push": (
+                "!f(){ current_branch=$(git rev-parse --abbrev-ref HEAD) || exit 1; "
+                "[ \"$current_branch\" = \"HEAD\" ] && echo detached-HEAD && exit 1; "
+                "name=$(git config --get user.email); name=${name%@*}; "
+                "[ -z \"$name\" ] && name=$(git config --get user.name | "
+                "tr '[:upper:]' '[:lower:]' | tr ' ' '.' | tr -cd 'a-z0-9._-'); "
+                "[ -z \"$name\" ] && echo missing-user-email-or-name && exit 1; "
+                "prefix=${name}/$(date +%m%d)_; n=1; "
+                "while git show-ref --verify --quiet refs/heads/${prefix}${n} || "
+                "git ls-remote --exit-code --heads origin ${prefix}${n} >/dev/null 2>&1; "
+                "do n=$((n+1)); done; new_branch=${prefix}${n}; "
+                "git switch -c ${new_branch} ${current_branch} && git push -u origin ${new_branch}; }; f"
+            ),
         }
         self.git_global_configs = [
             {
