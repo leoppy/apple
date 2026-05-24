@@ -49,6 +49,7 @@ class GitConfigTool:
             ),
             "branch-read": "!f(){ [ -z \"$1\" ] && echo \"错误: 请提供分支名称模式\" >&2 && return 1; git branch | grep \"$1\"; }; f",
             "branch-clear": "!f(){ [ -z \"$1\" ] && echo \"错误: 请提供分支名称模式\" >&2 && return 1; git branch | grep \"$1\" | sed 's/^[* ]*//' | xargs -r git branch -D; }; f",
+            "del-remote": "!f(){ branch=$(git branch --show-current) || exit 1; [ -z \"$branch\" ] && echo \"错误: 无法获取当前分支\" >&2 && exit 1; git push origin --delete $branch; }; f",
         }
         self.git_global_configs = [
             {
