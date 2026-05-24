@@ -47,6 +47,8 @@ class GitConfigTool:
                 "do n=$((n+1)); done; new_branch=${prefix}${n}; "
                 "git switch -c ${new_branch} ${current_branch} && git push -u origin ${new_branch}; }; f"
             ),
+            "branch-read": "!f(){ [ -z \"$1\" ] && echo \"错误: 请提供分支名称模式\" >&2 && return 1; git branch | grep \"$1\"; }; f",
+            "branch-clear": "!f(){ [ -z \"$1\" ] && echo \"错误: 请提供分支名称模式\" >&2 && return 1; git branch | grep \"$1\" | sed 's/^[* ]*//' | xargs -r git branch -D; }; f",
         }
         self.git_global_configs = [
             {
