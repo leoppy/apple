@@ -30,6 +30,7 @@ class GitConfigTool:
         self.git_aliases = {
             "init-sub": "submodule update --init --recursive",
             "update-sub": "submodule update --remote",
+            "clr-all-sub": "submodule foreach --recursive \"git restore .\"",
             "rebase-up": "!git fetch && (git rebase origin/master 2>/dev/null || git rebase origin/main)",
             "force-reset": "!git reset --hard && git clean -fd",
             "sync": "!f(){ branch=$(git rev-parse --abbrev-ref HEAD) && git fetch origin && git reset --hard origin/$branch; }; f",
